@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mathe Schreck - Laplace Labor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js" onload="renderMathInElement(document.body);"></script>
+    <style>
+        body { background-color: #000000; color: #ffffff; font-family: sans-serif; }
+        .neon-cyan { box-shadow: 0 0 10px #00ffff, inset 0 0 5px #00ffff; border-color: #00ffff; }
+        .neon-pink { text-shadow: 0 0 10px #ff00ff; color: #ff00ff; }
+        .neon-green { box-shadow: 0 0 15px #00ff00; border-color: #00ff00; }
+        .neon-red { box-shadow: 0 0 15px #ff0000; border-color: #ff0000; }
+        .math-input { background: transparent; border: none; border-bottom: 2px solid #00ffff; color: #00ffff; outline: none; text-align: center; font-size: 1.25rem; width: 300px; transition: border-color 0.3s; }
+        .math-input:focus { border-bottom: 2px solid #ff00ff; }
+        .dice-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; }
+        .progress-dot { width: 15px; height: 15px; border-radius: 50%; border: 2px solid #374151; transition: all 0.3s; }
+        .progress-dot.active { background-color: #00ffff; border-color: #00ffff; box-shadow: 0 0 10px #00ffff; }
+    </style>
+</head>
+<body class="flex flex-col items-center min-h-screen p-8">
+
+    <!-- Header & Fortschritt -->
+    <div class="w-full max-w-4xl flex justify-between items-center mb-8">
+        <h1 class="text-3xl font-bold text-white tracking-widest">Mathe Schreck | <span class="neon-pink">Laplace Labor</span></h1>
+        <div class="flex flex-col items-end">
+            <span class="text-sm text-gray-400 mb-1">Trainingsfortschritt</span>
+            <div class="flex gap-2" id="progress-container">
+                <div class="progress-dot" id="dot-1"></div>
+                <div class="progress-dot" id="dot-2"></div>
+                <div class="progress-dot" id="dot-3"></div>
+                <div class="progress-dot" id="dot-4"></div>
+                <div class="progress-dot" id="dot-5"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation -->
+    <div class="flex flex-wrap gap-4 mb-8">
+        <button onclick="loadExperiment('coin')" class="px-6 py-2 border border-gray-600 rounded hover:neon-cyan transition-all text-gray-300">Münzwurf</button>
+        <button onclick="loadExperiment('dice1')" class="px-6 py-2 border border-gray-600 rounded hover:neon-cyan transition-all text-gray-300">1 Würfel</button>
+        <button onclick="loadExperiment('dice2')" class="px-6 py-2 border border-gray-600 rounded hover:neon-cyan transition-all text-gray-300">2 Würfel</button>
+        <button onclick="loadExperiment('urn')" class="px-6 py-2 border border-gray-600 rounded hover:neon-cyan transition-all text-gray-300">Urne (10 Kugeln)</button>
+    </div>
+
+    <!-- Visualisierungsbereich -->
+    <div class="w-full max-w-4xl p-6 border-2 border-gray-800 rounded-xl mb-8 min-h-[250px] flex flex-col items-center justify-center relative">
+        <h2 id="exp-title" class="text-xl text-cyan-400 absolute top-4 left-4 font-bold"></h2>
+        
+        <div id="visualizer" class="flex flex-wrap gap-4 justify-center items-center mt-6">
+            <!-- Wird per JS gefüllt -->
+        </div>
+        
+        <div id="omega-display" class="mt-8 text-xl text-gray-400">
+            <!-- Omega Menge -->
+        </div>
+    </div>
+
+    <!-- Interaktiver Eingabebereich -->
+    <div class="w-full max-w-4xl p-6 border-2 border-pink-900 rounded-xl flex flex-col items-center bg-gray-900 bg-opacity-50 relative">
+        <p class="text-gray-400 mb-2">Übersetze das verbale Ereignis in die aufzählende Mengenschreibweise:</p>
+        <p id="verbal-task" class="text-2xl font-bold mb-6 text-pink-400 text-center min-h-[40px]"></p>
+        
+        <div class="flex items-center text-2xl mb-6">
+            <span class="mr-3">\(E = \{\)</span>
+            <input type="text" id="student-input" class="math-input" placeholder="Elemente mit Komma trennen" autocomplete="off" onkeydown="if(event.key === 'Enter') checkAnswer()">
+            <span class="ml-3">\(\}\)</span>
+        </div>
+
+        <div class="flex gap-4">
+            <button id="check-btn" onclick="checkAnswer()" class="px-8 py-3 bg-pink-700 hover:bg-pink-600 rounded font-bold transition-colors">Überprüfen</button>
+            <button id="next-btn" onclick="loadNextTask()" class="px-8 py-3 bg-cyan-700 hover:bg-cyan-600 rounded font-bold transition-colors hidden">Nächste Aufgabe</button>
+        </div>
+        <p id="feedback" class="mt-4 text-xl font-bold hidden"></p>
+    </div>
+
+    <!-- Auswertungs-Overlay -->
+    <div id="evaluation-modal" class="fixed inset-0 bg-black bg-opacity-95 hidden z-50 flex flex-col items-center justify-center">
+        <div class="border-4 border-cyan-400 rounded-2xl p-10 flex flex-col items-center bg-gray-900 max-w-lg text-center neon-cyan">
+            <h2 class="text-4xl font-bold text-white mb-2">Trainingsziel erreicht!</h2>
+            <h3 class="text-xl text-pink-400 mb-8 font-bold">Mathe Schreck - Auswertung</h3>
+            
+            <p class="text-lg text-gray-300 mb-4">Du hast 5 Mengen erfolgreich und mathematisch exakt notiert.</p>
+            
+            <div class="flex justify-between w-full border-t border-b border-gray-700 py-4 mb-8">
+                <div class="text-center w-1/2 border-r border-gray-700">
+                    <span class="block text-3xl font-bold text-cyan-400">5</span>
+                    <span class="text-sm text-gray-400">Gelöste Aufgaben</span>
+                </div>
+                <div class="text-center w-1/2">
+                    <span id="error-count" class="block text-3xl font-bold text-pink-400">0</span>
+                    <span class="text-sm text-gray-400">Fehlversuche</span>
+                </div>
+            </div>
+
+            <p id="eval-message" class="text-xl font-bold text-green-400 mb-8"></p>
+
+            <button onclick="resetTraining()" class="px-8 py-3 bg-cyan-600 hover:bg-cyan-500 rounded-lg font-bold text-white transition-colors text-lg">Neue Runde starten</button>
+        </div>
+    </div>
+
+    <script>
+        // Trainings-Status
+        let completedTasks = 0;
+        let totalErrors = 0;
+        let currentTaskSolved = false;
+        const TARGET_TASKS = 5;
+
+        // Aufgabenpool für Abwechslung
+        const taskBank = {
+            coin: [
+                { task: "Es wird Kopf geworfen.", sol: ['K'] },
+                { task: "Es wird Zahl geworfen.", sol: ['Z'] }
+            ],
+            dice1: [
+                { task: "Es wird eine Primzahl gewürfelt.", sol: ['2', '3', '5'] },
+                { task: "Es wird eine gerade Zahl gewürfelt.", sol: ['2', '4', '6'] },
+                { task: "Es wird eine Zahl echt größer als 4 gewürfelt.", sol: ['5', '6'] },
+                { task: "Es wird höchstens eine 2 gewürfelt.", sol: ['1', '2'] },
+                { task: "Es wird eine ungerade Zahl gewürfelt.", sol: ['1', '3', '5'] }
+            ],
+            dice2: [
+                { task: "Die Augensumme beträgt exakt 4.", sol: ['(1,3)', '(2,2)', '(3,1)'] },
+                { task: "Ein Pasch wird gewürfelt.", sol: ['(1,1)', '(2,2)', '(3,3)', '(4,4)', '(5,5)', '(6,6)'] },
+                { task: "Die Augensumme ist 11.", sol: ['(5,6)', '(6,5)'] },
+                { task: "Im ersten Wurf fällt eine 1, im zweiten Wurf eine Primzahl.", sol: ['(1,2)', '(1,3)', '(1,5)'] }
+            ],
+            urn: [
+                { task: "Es wird eine Zahl echt größer als 7 gezogen.", sol: ['8', '9', '10'] },
+                { task: "Es wird eine Quadratzahl gezogen.", sol: ['1', '4', '9'] },
+                { task: "Es wird eine Zahl gezogen, die ohne Rest durch 3 teilbar ist.", sol: ['3', '6', '9'] },
+                { task: "Es wird eine einstellige Primzahl gezogen.", sol: ['2', '3', '5', '7'] }
+            ]
+        };
+
+        const experiments = {
+            coin: { title: "Münzwurf" },
+            dice1: { title: "Ein idealer Würfel" },
+            dice2: { title: "Zweifacher Würfelwurf" },
+            urn: { title: "Urnenmodell (10 Kugeln)" }
+        };
+
+        let currentExp = 'dice1';
+        let currentSolution = [];
+
+        function loadExperiment(expType) {
+            currentExp = expType;
+            currentTaskSolved = false;
+            
+            // UI Reset
+            document.getElementById('feedback').classList.add('hidden');
+            document.getElementById('student-input').value = '';
+            document.getElementById('student-input').disabled = false;
+            document.getElementById('student-input').className = 'math-input';
+            document.getElementById('check-btn').classList.remove('hidden');
+            document.getElementById('next-btn').classList.add('hidden');
+            
+            document.getElementById('exp-title').innerText = experiments[expType].title;
+
+            // Wähle zufällige Aufgabe aus dem Pool
+            const tasks = taskBank[expType];
+            const randomTask = tasks[Math.floor(Math.random() * tasks.length)];
+            
+            document.getElementById('verbal-task').innerText = `Ereignis: "${randomTask.task}"`;
+            currentSolution = randomTask.sol;
+
+            renderVisualizer(expType);
+            renderMathInElement(document.body);
+            document.getElementById('student-input').focus();
+        }
+
+        function renderVisualizer(expType) {
+            const vis = document.getElementById('visualizer');
+            const omega = document.getElementById('omega-display');
+            vis.innerHTML = '';
+
+            if (expType === 'coin') {
+                vis.innerHTML = `
+                    <div class="w-24 h-24 rounded-full border-4 border-yellow-500 flex items-center justify-center text-3xl font-bold text-yellow-500">K</div>
+                    <div class="w-24 h-24 rounded-full border-4 border-gray-400 flex items-center justify-center text-3xl font-bold text-gray-400">Z</div>
+                `;
+                omega.innerHTML = `\\(\\Omega = \\{ K, Z \\}\\)`;
+            } 
+            else if (expType === 'dice1') {
+                for(let num=1; num<=6; num++) {
+                    vis.innerHTML += `<div class="w-16 h-16 rounded-xl border-2 border-cyan-400 flex items-center justify-center text-2xl font-bold text-cyan-400">${num}</div>`;
+                }
+                omega.innerHTML = `\\(\\Omega = \\{ 1, 2, 3, 4, 5, 6 \\}\\)`;
+            }
+            else if (expType === 'dice2') {
+                let gridHtml = '<div class="dice-grid">';
+                for(let i=1; i<=6; i++) {
+                    for(let j=1; j<=6; j++) {
+                        gridHtml += `<div class="w-12 h-8 border border-gray-700 flex items-center justify-center text-xs text-gray-400">(${i},${j})</div>`;
+                    }
+                }
+                gridHtml += '</div>';
+                vis.innerHTML = gridHtml;
+                omega.innerHTML = `\\(\\Omega = \\{ (1,1), (1,2), \\dots , (6,6) \\}\\)  |  \\(|\\Omega| = 36\\)`;
+            }
+            else if (expType === 'urn') {
+                for(let i=1; i<=10; i++) {
+                    vis.innerHTML += `<div class="w-12 h-12 rounded-full bg-cyan-900 border-2 border-cyan-400 flex items-center justify-center text-white font-bold">${i}</div>`;
+                }
+                omega.innerHTML = `\\(\\Omega = \\{ 1, 2, \\dots, 10 \\}\\)`;
+            }
+        }
+
+        function checkAnswer() {
+            if (currentTaskSolved) return;
+
+            const inputField = document.getElementById('student-input');
+            const feedback = document.getElementById('feedback');
+            
+            let rawInput = inputField.value;
+            let parsedInput = rawInput.split(',').map(s => s.trim()).filter(s => s !== "").sort();
+            let parsedSolution = [...currentSolution].sort();
+
+            const isCorrect = JSON.stringify(parsedInput) === JSON.stringify(parsedSolution);
+
+            feedback.classList.remove('hidden');
+            if (isCorrect) {
+                inputField.classList.add('neon-green');
+                inputField.classList.remove('neon-red', 'neon-pink');
+                inputField.disabled = true;
+                
+                feedback.innerText = "Exzellent! Die Menge ist mathematisch korrekt definiert.";
+                feedback.className = "mt-4 text-xl font-bold text-green-400";
+                
+                document.getElementById('check-btn').classList.add('hidden');
+                document.getElementById('next-btn').classList.remove('hidden');
+                
+                updateProgress();
+            } else {
+                totalErrors++;
+                inputField.classList.add('neon-red');
+                inputField.classList.remove('neon-green');
+                feedback.innerText = "Nicht ganz. Überprüfe die Elemente der Menge.";
+                feedback.className = "mt-4 text-xl font-bold text-red-500";
+            }
+        }
+
+        function updateProgress() {
+            completedTasks++;
+            currentTaskSolved = true;
+            
+            if (completedTasks <= TARGET_TASKS) {
+                document.getElementById(`dot-${completedTasks}`).classList.add('active');
+            }
+
+            if (completedTasks === TARGET_TASKS) {
+                setTimeout(showEvaluation, 800);
+            }
+        }
+
+        function loadNextTask() {
+            // Wählt zufällig ein neues Experiment
+            const expKeys = Object.keys(experiments);
+            const nextExp = expKeys[Math.floor(Math.random() * expKeys.length)];
+            loadExperiment(nextExp);
+        }
+
+        function showEvaluation() {
+            document.getElementById('evaluation-modal').classList.remove('hidden');
+            document.getElementById('error-count').innerText = totalErrors;
+            
+            const evalMsg = document.getElementById('eval-message');
+            if (totalErrors === 0) {
+                evalMsg.innerText = "Makellos! Du hast ein hervorragendes Verständnis für die Mengenlehre.";
+                evalMsg.className = "text-xl font-bold text-cyan-400 mb-8";
+            } else if (totalErrors <= 3) {
+                evalMsg.innerText = "Sehr solide Leistung! Die kleinen Flüchtigkeitsfehler bekommst du auch noch in den Griff.";
+                evalMsg.className = "text-xl font-bold text-green-400 mb-8";
+            } else {
+                evalMsg.innerText = "Gute Ausdauer! Die Grundlagen sitzen nun besser. Übung macht den Meister.";
+                evalMsg.className = "text-xl font-bold text-yellow-400 mb-8";
+            }
+        }
+
+        function resetTraining() {
+            completedTasks = 0;
+            totalErrors = 0;
+            
+            for(let i=1; i<=TARGET_TASKS; i++) {
+                document.getElementById(`dot-${i}`).classList.remove('active');
+            }
+            
+            document.getElementById('evaluation-modal').classList.add('hidden');
+            loadExperiment('dice1');
+        }
+
+        // Initiale Ladung
+        loadExperiment('dice1');
+    </script>
+</body>
+</html>
