@@ -3,13 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mathe Schreck - Laplace Labor</title>
+    <title>Mathe-Schreck - Laplace Labor</title>
+    
+    <!-- Tailwind und KaTeX laden -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js" onload="renderMathInElement(document.body);"></script>
+    
+    <!-- Google Font für Creepster laden -->
+    <link href="https://fonts.googleapis.com/css2?family=Creepster&display=swap" rel="stylesheet">
+    
     <style>
         body { background-color: #000000; color: #ffffff; font-family: sans-serif; }
+        .mathe-schreck-brand { font-family: 'Creepster', cursive; color: #644533; font-weight: normal; }
         .neon-cyan { box-shadow: 0 0 10px #00ffff, inset 0 0 5px #00ffff; border-color: #00ffff; }
         .neon-pink { text-shadow: 0 0 10px #ff00ff; color: #ff00ff; }
         .neon-green { box-shadow: 0 0 15px #00ff00; border-color: #00ff00; }
@@ -23,10 +30,17 @@
 </head>
 <body class="flex flex-col items-center min-h-screen p-8">
 
+    <!-- Vollbild Button -->
+    <button onclick="toggleFullScreen()" class="fixed top-4 right-4 z-50 p-2 text-gray-500 hover:text-cyan-400 transition-colors" title="Vollbild umschalten">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16">
+            <path fill-rule="evenodd" d="M5.828 10.172a.5.5 0 0 0-.707 0l-4.096 4.096V11.5a.5.5 0 0 0-1 0v3.975a.5.5 0 0 0 .5.5H4.5a.5.5 0 0 0 0-1H1.732l4.096-4.096a.5.5 0 0 0 0-.707zm4.344 0a.5.5 0 0 1 .707 0l4.096 4.096V11.5a.5.5 0 1 1 1 0v3.975a.5.5 0 0 1-.5.5H11.5a.5.5 0 0 1 0-1h2.768l-4.096-4.096a.5.5 0 0 1 0-.707zm0-4.344a.5.5 0 0 0 .707 0l4.096-4.096V4.5a.5.5 0 1 0 1 0V.525a.5.5 0 0 0-.5-.5H11.5a.5.5 0 0 0 0 1h2.768l-4.096 4.096a.5.5 0 0 0 0 .707zm-4.344 0a.5.5 0 0 1-.707 0L1.732 1.732V4.5a.5.5 0 0 1-1 0V.525a.5.5 0 0 1 .5-.5H4.5a.5.5 0 0 1 0 1H1.732l4.096 4.096a.5.5 0 0 1 0 .707z"/>
+        </svg>
+    </button>
+
     <!-- Header & Fortschritt -->
     <div class="w-full max-w-4xl flex justify-between items-center mb-8">
-        <h1 class="text-3xl font-bold text-white tracking-widest">Mathe Schreck | <span class="neon-pink">Laplace Labor</span></h1>
-        <div class="flex flex-col items-end">
+        <h1 class="text-4xl tracking-widest"><span class="mathe-schreck-brand">Mathe-Schreck</span> <span class="text-white text-3xl font-sans">|</span> <span class="neon-pink font-bold text-3xl font-sans">Laplace Labor</span></h1>
+        <div class="flex flex-col items-end font-sans">
             <span class="text-sm text-gray-400 mb-1">Trainingsfortschritt</span>
             <div class="flex gap-2" id="progress-container">
                 <div class="progress-dot" id="dot-1"></div>
@@ -74,65 +88,83 @@
             <button id="check-btn" onclick="checkAnswer()" class="px-8 py-3 bg-pink-700 hover:bg-pink-600 rounded font-bold transition-colors">Überprüfen</button>
             <button id="next-btn" onclick="loadNextTask()" class="px-8 py-3 bg-cyan-700 hover:bg-cyan-600 rounded font-bold transition-colors hidden">Nächste Aufgabe</button>
         </div>
-        <p id="feedback" class="mt-4 text-xl font-bold hidden"></p>
+        
+        <div id="feedback-container" class="mt-4 text-center hidden w-full p-4 rounded bg-gray-800">
+            <p id="feedback-text" class="text-xl font-bold"></p>
+            <p id="feedback-explanation" class="mt-2 text-gray-300 hidden"></p>
+        </div>
     </div>
 
     <!-- Auswertungs-Overlay -->
     <div id="evaluation-modal" class="fixed inset-0 bg-black bg-opacity-95 hidden z-50 flex flex-col items-center justify-center">
         <div class="border-4 border-cyan-400 rounded-2xl p-10 flex flex-col items-center bg-gray-900 max-w-lg text-center neon-cyan">
             <h2 class="text-4xl font-bold text-white mb-2">Trainingsziel erreicht!</h2>
-            <h3 class="text-xl text-pink-400 mb-8 font-bold">Mathe Schreck - Auswertung</h3>
+            <h3 class="text-2xl mathe-schreck-brand mb-8">Mathe-Schreck <span class="text-pink-400 font-sans text-xl font-bold">- Auswertung</span></h3>
             
-            <p class="text-lg text-gray-300 mb-4">Du hast 5 Mengen erfolgreich und mathematisch exakt notiert.</p>
+            <p class="text-lg text-gray-300 mb-4">Du hast 5 Mengen erfolgreich erarbeitet.</p>
             
             <div class="flex justify-between w-full border-t border-b border-gray-700 py-4 mb-8">
                 <div class="text-center w-1/2 border-r border-gray-700">
                     <span class="block text-3xl font-bold text-cyan-400">5</span>
-                    <span class="text-sm text-gray-400">Gelöste Aufgaben</span>
+                    <span class="text-sm text-gray-400">Aufgaben</span>
                 </div>
                 <div class="text-center w-1/2">
                     <span id="error-count" class="block text-3xl font-bold text-pink-400">0</span>
-                    <span class="text-sm text-gray-400">Fehlversuche</span>
+                    <span class="text-sm text-gray-400">Fehlversuche gesamt</span>
                 </div>
             </div>
 
             <p id="eval-message" class="text-xl font-bold text-green-400 mb-8"></p>
 
-            <button onclick="resetTraining()" class="px-8 py-3 bg-cyan-600 hover:bg-cyan-500 rounded-lg font-bold text-white transition-colors text-lg">Neue Runde starten</button>
+            <button onclick="resetTraining()" class="px-8 py-3 bg-cyan-600 hover:bg-cyan-500 rounded-lg font-bold text-white transition-colors text-lg font-sans">Neue Runde starten</button>
         </div>
     </div>
 
     <script>
+        // Vollbild-Funktion
+        function toggleFullScreen() {
+            let elem = document.documentElement;
+            if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+                if (elem.requestFullscreen) { elem.requestFullscreen(); }
+                else if (elem.webkitRequestFullscreen) { elem.webkitRequestFullscreen(); }
+            } else {
+                if (document.exitFullscreen) { document.exitFullscreen(); }
+                else if (document.webkitExitFullscreen) { document.webkitExitFullscreen(); }
+            }
+        }
+
         // Trainings-Status
         let completedTasks = 0;
         let totalErrors = 0;
         let currentTaskSolved = false;
+        let currentAttempts = 0;
         const TARGET_TASKS = 5;
+        const MAX_ATTEMPTS = 3;
 
-        // Aufgabenpool für Abwechslung
+        // Aufgabenpool mit Erklärungen
         const taskBank = {
             coin: [
-                { task: "Es wird Kopf geworfen.", sol: ['K'] },
-                { task: "Es wird Zahl geworfen.", sol: ['Z'] }
+                { task: "Es wird Kopf geworfen.", sol: ['K'], exp: "Die Ergebnismenge besteht nur aus Kopf (K) und Zahl (Z)." },
+                { task: "Es wird Zahl geworfen.", sol: ['Z'], exp: "Die Ergebnismenge besteht nur aus Kopf (K) und Zahl (Z)." }
             ],
             dice1: [
-                { task: "Es wird eine Primzahl gewürfelt.", sol: ['2', '3', '5'] },
-                { task: "Es wird eine gerade Zahl gewürfelt.", sol: ['2', '4', '6'] },
-                { task: "Es wird eine Zahl echt größer als 4 gewürfelt.", sol: ['5', '6'] },
-                { task: "Es wird höchstens eine 2 gewürfelt.", sol: ['1', '2'] },
-                { task: "Es wird eine ungerade Zahl gewürfelt.", sol: ['1', '3', '5'] }
+                { task: "Es wird eine Primzahl gewürfelt.", sol: ['2', '3', '5'], exp: "Primzahlen sind nur durch 1 und sich selbst teilbar. Die 1 ist keine Primzahl." },
+                { task: "Es wird eine gerade Zahl gewürfelt.", sol: ['2', '4', '6'], exp: "Gerade Zahlen sind alle Vielfachen von 2." },
+                { task: "Es wird eine Zahl echt größer als 4 gewürfelt.", sol: ['5', '6'], exp: "'Echt größer' bedeutet, dass die 4 selbst nicht dazugehört." },
+                { task: "Es wird höchstens eine 2 gewürfelt.", sol: ['1', '2'], exp: "'Höchstens' bedeutet: die 2 und alle kleineren Zahlen." },
+                { task: "Es wird eine ungerade Zahl gewürfelt.", sol: ['1', '3', '5'], exp: "Ungerade Zahlen sind alle Zahlen, die nicht durch 2 teilbar sind." }
             ],
             dice2: [
-                { task: "Die Augensumme beträgt exakt 4.", sol: ['(1,3)', '(2,2)', '(3,1)'] },
-                { task: "Ein Pasch wird gewürfelt.", sol: ['(1,1)', '(2,2)', '(3,3)', '(4,4)', '(5,5)', '(6,6)'] },
-                { task: "Die Augensumme ist 11.", sol: ['(5,6)', '(6,5)'] },
-                { task: "Im ersten Wurf fällt eine 1, im zweiten Wurf eine Primzahl.", sol: ['(1,2)', '(1,3)', '(1,5)'] }
+                { task: "Die Augensumme beträgt exakt 4.", sol: ['(1,3)', '(2,2)', '(3,1)'], exp: "Beide Würfel zusammen müssen 4 ergeben. Die Reihenfolge (Würfel 1, Würfel 2) ist entscheidend, daher sind (1,3) und (3,1) unterschiedliche Ergebnisse." },
+                { task: "Ein Pasch wird gewürfelt.", sol: ['(1,1)', '(2,2)', '(3,3)', '(4,4)', '(5,5)', '(6,6)'], exp: "Ein Pasch liegt vor, wenn beide Würfel exakt dieselbe Augenzahl zeigen." },
+                { task: "Die Augensumme ist 11.", sol: ['(5,6)', '(6,5)'], exp: "Nur die höchsten Zahlen auf dem Würfel können kombiniert 11 ergeben." },
+                { task: "Im ersten Wurf fällt eine 1, im zweiten Wurf eine Primzahl.", sol: ['(1,2)', '(1,3)', '(1,5)'], exp: "Die erste Position im Tupel ist fest die 1. Die zweite Position kann 2, 3 oder 5 sein (die Primzahlen)." }
             ],
             urn: [
-                { task: "Es wird eine Zahl echt größer als 7 gezogen.", sol: ['8', '9', '10'] },
-                { task: "Es wird eine Quadratzahl gezogen.", sol: ['1', '4', '9'] },
-                { task: "Es wird eine Zahl gezogen, die ohne Rest durch 3 teilbar ist.", sol: ['3', '6', '9'] },
-                { task: "Es wird eine einstellige Primzahl gezogen.", sol: ['2', '3', '5', '7'] }
+                { task: "Es wird eine Zahl echt größer als 7 gezogen.", sol: ['8', '9', '10'], exp: "Die 7 ist nicht eingeschlossen." },
+                { task: "Es wird eine Quadratzahl gezogen.", sol: ['1', '4', '9'], exp: "Quadratzahlen entstehen durch das Multiplizieren einer Zahl mit sich selbst (1x1=1, 2x2=4, 3x3=9)." },
+                { task: "Es wird eine Zahl gezogen, die ohne Rest durch 3 teilbar ist.", sol: ['3', '6', '9'], exp: "Das sind alle Zahlen aus der 3er-Reihe bis 10." },
+                { task: "Es wird eine einstellige Primzahl gezogen.", sol: ['2', '3', '5', '7'], exp: "Die 1 ist keine Primzahl. Primzahlen haben genau zwei Teiler." }
             ]
         };
 
@@ -145,13 +177,16 @@
 
         let currentExp = 'dice1';
         let currentSolution = [];
+        let currentExplanation = "";
 
         function loadExperiment(expType) {
             currentExp = expType;
             currentTaskSolved = false;
+            currentAttempts = 0;
             
             // UI Reset
-            document.getElementById('feedback').classList.add('hidden');
+            document.getElementById('feedback-container').classList.add('hidden');
+            document.getElementById('feedback-explanation').classList.add('hidden');
             document.getElementById('student-input').value = '';
             document.getElementById('student-input').disabled = false;
             document.getElementById('student-input').className = 'math-input';
@@ -160,12 +195,13 @@
             
             document.getElementById('exp-title').innerText = experiments[expType].title;
 
-            // Wähle zufällige Aufgabe aus dem Pool
+            // Wähle zufällige Aufgabe
             const tasks = taskBank[expType];
             const randomTask = tasks[Math.floor(Math.random() * tasks.length)];
             
             document.getElementById('verbal-task').innerText = `Ereignis: "${randomTask.task}"`;
             currentSolution = randomTask.sol;
+            currentExplanation = randomTask.exp;
 
             renderVisualizer(expType);
             renderMathInElement(document.body);
@@ -213,7 +249,9 @@
             if (currentTaskSolved) return;
 
             const inputField = document.getElementById('student-input');
-            const feedback = document.getElementById('feedback');
+            const feedbackContainer = document.getElementById('feedback-container');
+            const feedbackText = document.getElementById('feedback-text');
+            const feedbackExp = document.getElementById('feedback-explanation');
             
             let rawInput = inputField.value;
             let parsedInput = rawInput.split(',').map(s => s.trim()).filter(s => s !== "").sort();
@@ -221,25 +259,48 @@
 
             const isCorrect = JSON.stringify(parsedInput) === JSON.stringify(parsedSolution);
 
-            feedback.classList.remove('hidden');
+            feedbackContainer.classList.remove('hidden');
+
             if (isCorrect) {
                 inputField.classList.add('neon-green');
                 inputField.classList.remove('neon-red', 'neon-pink');
                 inputField.disabled = true;
                 
-                feedback.innerText = "Exzellent! Die Menge ist mathematisch korrekt definiert.";
-                feedback.className = "mt-4 text-xl font-bold text-green-400";
+                feedbackText.innerText = "Exzellent! Die Menge ist mathematisch korrekt definiert.";
+                feedbackText.className = "text-xl font-bold text-green-400";
+                feedbackExp.classList.add('hidden');
                 
                 document.getElementById('check-btn').classList.add('hidden');
                 document.getElementById('next-btn').classList.remove('hidden');
                 
                 updateProgress();
             } else {
+                currentAttempts++;
                 totalErrors++;
-                inputField.classList.add('neon-red');
-                inputField.classList.remove('neon-green');
-                feedback.innerText = "Nicht ganz. Überprüfe die Elemente der Menge.";
-                feedback.className = "mt-4 text-xl font-bold text-red-500";
+                
+                if (currentAttempts >= MAX_ATTEMPTS) {
+                    inputField.value = currentSolution.join(', ');
+                    inputField.disabled = true;
+                    inputField.classList.add('neon-pink');
+                    inputField.classList.remove('neon-red', 'math-input');
+                    
+                    feedbackText.innerText = "Die maximale Anzahl an Versuchen wurde erreicht.";
+                    feedbackText.className = "text-xl font-bold text-pink-400";
+                    
+                    feedbackExp.innerHTML = `Die korrekte Menge lautet: <b>{ ${currentSolution.join(', ')} }</b><br><br><b>Erklärung:</b> ${currentExplanation}`;
+                    feedbackExp.classList.remove('hidden');
+                    
+                    document.getElementById('check-btn').classList.add('hidden');
+                    document.getElementById('next-btn').classList.remove('hidden');
+                    
+                    updateProgress();
+                } else {
+                    inputField.classList.add('neon-red');
+                    inputField.classList.remove('neon-green');
+                    feedbackText.innerText = `Nicht ganz. Überprüfe die Elemente der Menge. (Versuch ${currentAttempts}/${MAX_ATTEMPTS})`;
+                    feedbackText.className = "text-xl font-bold text-red-500";
+                    feedbackExp.classList.add('hidden');
+                }
             }
         }
 
@@ -252,12 +313,11 @@
             }
 
             if (completedTasks === TARGET_TASKS) {
-                setTimeout(showEvaluation, 800);
+                setTimeout(showEvaluation, 1500);
             }
         }
 
         function loadNextTask() {
-            // Wählt zufällig ein neues Experiment
             const expKeys = Object.keys(experiments);
             const nextExp = expKeys[Math.floor(Math.random() * expKeys.length)];
             loadExperiment(nextExp);
