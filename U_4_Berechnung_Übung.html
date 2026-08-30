@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trainingslager: Untersumme und Bestand</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <style>
+        .input-box {
+            width: 80px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800 font-sans p-4 md:p-8">
+
+    <div class="max-w-6xl mx-auto bg-white rounded-xl shadow-xl overflow-hidden">
+        
+        <!-- Header -->
+        <div class="bg-blue-700 text-white p-6">
+            <h1 class="text-3xl font-bold">Trainingslager: Untersumme U<sub>4</sub> und Bestand</h1>
+            <p class="mt-2 opacity-90">Bestimme den Endbestand aus der Änderungsrate durch schrittweise Näherung.</p>
+        </div>
+
+        <!-- Level Selector -->
+        <div class="flex border-b border-gray-200 bg-gray-50">
+            <button onclick="setLevel(1)" id="tab-1" class="flex-1 py-4 font-bold text-lg text-blue-600 border-b-4 border-blue-600 hover:bg-gray-100 transition">Level 1: Monoton steigend</button>
+            <button onclick="setLevel(2)" id="tab-2" class="flex-1 py-4 font-bold text-lg text-gray-500 border-b-4 border-transparent hover:bg-gray-100 transition">Level 2: Steigend & Fallend</button>
+            <button onclick="setLevel(3)" id="tab-3" class="flex-1 py-4 font-bold text-lg text-gray-500 border-b-4 border-transparent hover:bg-gray-100 transition">Level 3: Mit Vorzeichenwechsel</button>
+        </div>
+
+        <div class="p-6 grid grid-cols-1 lg:grid-cols-2 gap-8">
+            
+            <!-- Aufgaben & Eingabe-Panel -->
+            <div class="space-y-6">
+                <div class="bg-blue-50 p-5 rounded-lg border border-blue-200 shadow-sm">
+                    <div class="flex justify-between items-start mb-3">
+                        <h2 class="text-xl font-bold text-blue-800">Deine Aufgabe</h2>
+                        <button onclick="generateTask()" class="text-sm bg-blue-200 hover:bg-blue-300 text-blue-800 px-3 py-1 rounded font-semibold transition">Neu mischen</button>
+                    </div>
+                    <p id="taskContext" class="mb-4 text-gray-700"></p>
+                    <div class="grid grid-cols-2 gap-4 text-lg">
+                        <div class="bg-white p-3 rounded border"><strong>f(x) = </strong><span id="taskFunc" class="font-mono text-blue-700"></span></div>
+                        <div class="bg-white p-3 rounded border"><strong>Intervall: </strong>[0 ; <span id="taskEnd"></span>]</div>
+                    </div>
+                    <div class="mt-4 mb-4 bg-white p-3 rounded border"><strong>Anfangsbestand: </strong><span id="taskInit"></span></div>
+                    
+                    <!-- NEU: Button für die grafische Hilfestellung -->
+                    <button onclick="drawGraphAid()" id="btnGraphAid" class="w-full bg-indigo-100 hover:bg-indigo-200 text-indigo-800 border border-indigo-300 font-bold py-2 px-4 rounded transition text-left flex justify-between items-center">
+                        <span>👁️ Graph und Rechtecke zur Hilfe einblenden</span>
+                        <span class="text-xl">+</span>
+                    </button>
+                </div>
+
+                <!-- Arbeitsblatt (Eingabefelder) -->
+                <div class="bg-white p-5 rounded-lg border border-gray-300 shadow-sm">
+                    <h3 class="text-lg font-bold mb-4 border-b pb-2">1. Schritt: Untersumme U<sub>4</sub> berechnen</h3>
+                    
+                    <div class="flex items-center space-x-4 mb-4">
+                        <label class="font-semibold">Breite eines Rechtecks (&Delta;x):</label>
+                        <input type="number" id="inputDx" step="0.1" class="border-2 border-gray-300 rounded p-2 input-box focus:border-blue-500 outline-none">
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="font-semibold block mb-2">Höhe der 4 Rechtecke (Minimaler Funktionswert im Teilintervall):</label>
+                        <div class="flex space-x-3">
+                            <div><span class="text-sm text-gray-500 block">h<sub>1</sub></span><input type="number" id="inputH1" step="0.01" class="border-2 border-gray-300 rounded p-2 input-box"></div>
+                            <div><span class="text-sm text-gray-500 block">h<sub>2</sub></span><input type="number" id="inputH2" step="0.01" class="border-2 border-gray-300 rounded p-2 input-box"></div>
+                            <div><span class="text-sm text-gray-500 block">h<sub>3</sub></span><input type="number" id="inputH3" step="0.01" class="border-2 border-gray-300 rounded p-2 input-box"></div>
+                            <div><span class="text-sm text-gray-500 block">h<sub>4</sub></span><input type="number" id="inputH4" step="0.01" class="border-2 border-gray-300 rounded p-2 input-box"></div>
+                        </div>
+                        <p id="hintMin" class="text-xs text-red-500 mt-2 hidden">Achtung bei Level 2 & 3: Das Minimum liegt nicht immer am Rand!</p>
+                    </div>
+
+                    <div class="flex items-center space-x-4 mb-6">
+                        <label class="font-semibold">Gesamte Untersumme U<sub>4</sub>:</label>
+                        <input type="number" id="inputU4" step="0.01" class="border-2 border-gray-300 rounded p-2 w-24 text-center focus:border-blue-500 outline-none">
+                    </div>
+
+                    <h3 class="text-lg font-bold mb-4 border-b pb-2">2. Schritt: Endbestand ermitteln</h3>
+                    <div class="flex items-center space-x-4 mb-6">
+                        <label class="font-semibold">Bestand am Ende des Intervalls:</label>
+                        <input type="number" id="inputFinal" step="0.01" class="border-2 border-gray-300 rounded p-2 w-24 text-center focus:border-green-500 outline-none">
+                    </div>
+
+                    <button onclick="checkAnswers()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg text-lg transition shadow-md">
+                        Antworten prüfen
+                    </button>
+                    
+                    <div id="feedbackBox" class="mt-4 p-4 rounded hidden font-bold"></div>
+                </div>
+            </div>
+
+            <!-- Graphik & Lösung (werden dynamisch eingeblendet) -->
+            <div class="flex flex-col space-y-6">
+                <!-- Visuelle Hilfe (Graph) -->
+                <div id="graphPanel" class="hidden bg-white p-4 rounded-lg border border-gray-300 shadow-sm relative">
+                    <h3 class="text-lg font-bold mb-2 absolute top-4 left-4 z-10 bg-white/90 p-1 rounded border shadow-sm">Grafische Hilfe</h3>
+                    <div id="graphDiv" class="w-full h-[350px]"></div>
+                </div>
+
+                <!-- Ausführlicher Rechenweg -->
+                <div id="solutionPanel" class="hidden bg-gray-50 p-5 rounded-lg border border-gray-300 shadow-sm">
+                    <h3 class="text-lg font-bold mb-3 border-b border-gray-300 pb-2">Ausführlicher Rechenweg</h3>
+                    <div id="solutionText" class="font-mono text-sm space-y-3"></div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // Aufgaben-Datenbank
+        const taskDB = {
+            1: [
+                { func: "0.25*x^2 + 2", text: "In einen leeren Pool fließt Wasser. Die Zuflussrate wird durch f(x) in Liter/Minute beschrieben. Zu Beginn sind 10 Liter im Pool.", b: 8, B0: 10, unit: "Liter" },
+                { func: "0.5*x + 1", text: "Ein Förderband transportiert Kies auf einen Haufen. f(x) gibt die Förderrate in Tonnen/Stunde an. Zu Beginn liegen bereits 5 Tonnen auf dem Haufen.", b: 4, B0: 5, unit: "Tonnen" }
+            ],
+            2: [
+                { func: "-0.25*(x-4)^2 + 6", text: "Die Fans strömen in den Deutsche Bank Park. Die Ankunftsrate (in 1000 Personen pro Stunde) steigt vor Anpfiff an und flacht dann ab. Anfangs sind schon 5 (Tausend) Personen im Stadion.", b: 8, B0: 5, unit: "Tsd. Personen" },
+                { func: "-0.5*(x-2)^2 + 4", text: "Ein Ofen wird angeheizt. Die Änderungsrate der Temperatur (in °C pro Minute) steigt kurz an und fällt dann. Starttemperatur des Ofens: 20 °C.", b: 4, B0: 20, unit: "°C" }
+            ],
+            3: [
+                { func: "-1*x + 4", text: "In einem Tankbehälter gibt es Zu- und Abfluss. f(x) (in L/min) beschreibt die resultierende Änderungsrate. Fällt f(x) unter Null, fließt mehr ab als zu! Anfangsbestand: 50 Liter.", b: 8, B0: 50, unit: "Liter" },
+                { func: "0.5*(x-4)^2 - 2", text: "Ein Unternehmenskonto verzeichnet Einnahmen und Ausgaben. Die Änderungsrate in 1000 € pro Monat schwankt (negative Werte bedeuten Verlust). Startguthaben: 15 (Tausend €).", b: 8, B0: 15, unit: "Tsd. €" }
+            ]
+        };
+
+        let currentLevel = 1;
+        let currentTask = null;
+        let compiledNode = null;
+        let correctData = {};
+        let graphRendered = false;
+
+        function setLevel(lvl) {
+            currentLevel = lvl;
+            
+            for(let i=1; i<=3; i++) {
+                const tab = document.getElementById(`tab-${i}`);
+                if(i === lvl) {
+                    tab.classList.replace('text-gray-500', 'text-blue-600');
+                    tab.classList.replace('border-transparent', 'border-blue-600');
+                } else {
+                    tab.classList.replace('text-blue-600', 'text-gray-500');
+                    tab.classList.replace('border-blue-600', 'border-transparent');
+                }
+            }
+            
+            document.getElementById('hintMin').classList.toggle('hidden', lvl === 1);
+            generateTask();
+        }
+
+        function evaluateFunc(x) {
+            return compiledNode.evaluate({ x: x });
+        }
+
+        function findMinimumInInterval(start, end) {
+            const steps = 100;
+            const stepSize = (end - start) / steps;
+            let minVal = Infinity;
+            let minX = start;
+
+            for (let i = 0; i <= steps; i++) {
+                let x = start + i * stepSize;
+                let y = evaluateFunc(x);
+                if (y < minVal) {
+                    minVal = y;
+                    minX = x;
+                }
+            }
+            return { x: minX, y: minVal };
+        }
+
+        function generateTask() {
+            const tasks = taskDB[currentLevel];
+            currentTask = tasks[Math.floor(Math.random() * tasks.length)];
+            compiledNode = math.parse(currentTask.func).compile();
+
+            document.getElementById('taskContext').innerText = currentTask.text;
+            document.getElementById('taskFunc').innerText = currentTask.func;
+            document.getElementById('taskEnd').innerText = currentTask.b;
+            document.getElementById('taskInit').innerText = currentTask.B0 + " " + currentTask.unit;
+
+            const inputs = ['inputDx', 'inputH1', 'inputH2', 'inputH3', 'inputH4', 'inputU4', 'inputFinal'];
+            inputs.forEach(id => {
+                const el = document.getElementById(id);
+                el.value = '';
+                el.classList.remove('border-red-500', 'bg-red-50', 'border-green-500', 'bg-green-50');
+                el.classList.add('border-gray-300');
+            });
+
+            document.getElementById('feedbackBox').classList.add('hidden');
+            document.getElementById('graphPanel').classList.add('hidden');
+            document.getElementById('solutionPanel').classList.add('hidden');
+            document.getElementById('btnGraphAid').classList.remove('hidden');
+            graphRendered = false;
+
+            calculateCorrectAnswers();
+        }
+
+        function calculateCorrectAnswers() {
+            const dx = currentTask.b / 4;
+            const heights = [];
+            const rects = [];
+            let u4 = 0;
+
+            for(let i=0; i<4; i++) {
+                let start = i * dx;
+                let end = (i + 1) * dx;
+                let min = findMinimumInInterval(start, end);
+                let h = Math.round(min.y * 100) / 100; 
+                heights.push(h);
+                rects.push({x0: start, x1: end, minX: min.x, minY: h});
+                u4 += h * dx;
+            }
+
+            u4 = Math.round(u4 * 100) / 100;
+            const finalAmount = Math.round((currentTask.B0 + u4) * 100) / 100;
+
+            correctData = { dx, heights, u4, finalAmount, rects };
+        }
+
+        function drawGraphAid() {
+            document.getElementById('graphPanel').classList.remove('hidden');
+            document.getElementById('btnGraphAid').classList.add('hidden'); // Button verstecken nach Klick
+            
+            const xVals = [];
+            const yVals = [];
+            for(let i=0; i<=200; i++) {
+                let x = (currentTask.b / 200) * i;
+                xVals.push(x);
+                yVals.push(evaluateFunc(x));
+            }
+
+            const trace = {
+                x: xVals, y: yVals, mode: 'lines', name: 'f(x)', line: {color: '#1d4ed8', width: 3}, hoverinfo: 'none'
+            };
+
+            const shapes = correctData.rects.map(r => ({
+                type: 'rect',
+                x0: r.x0, y0: 0, x1: r.x1, y1: r.minY,
+                fillcolor: r.minY >= 0 ? 'rgba(34, 197, 94, 0.3)' : 'rgba(239, 68, 68, 0.3)',
+                line: { color: r.minY >= 0 ? 'rgba(21, 128, 61, 1)' : 'rgba(185, 28, 28, 1)', width: 2 }
+            }));
+
+            if(currentLevel === 3) {
+                shapes.push({
+                    type: 'line', x0: 0, y0: 0, x1: currentTask.b, y1: 0,
+                    line: { color: 'black', width: 1, dash: 'dot' }
+                });
+            }
+
+            const layout = {
+                margin: { t: 40, b: 30, l: 40, r: 20 },
+                xaxis: { range: [-0.2, currentTask.b + 0.2] },
+                shapes: shapes,
+                showlegend: false
+            };
+
+            Plotly.newPlot('graphDiv', [trace], layout, {displayModeBar: false});
+            graphRendered = true;
+        }
+
+        function checkAnswers() {
+            const tol = 0.05; 
+            
+            const dxIn = parseFloat(document.getElementById('inputDx').value);
+            const hIn = [
+                parseFloat(document.getElementById('inputH1').value),
+                parseFloat(document.getElementById('inputH2').value),
+                parseFloat(document.getElementById('inputH3').value),
+                parseFloat(document.getElementById('inputH4').value)
+            ];
+            const u4In = parseFloat(document.getElementById('inputU4').value);
+            const finalIn = parseFloat(document.getElementById('inputFinal').value);
+
+            let allCorrect = true;
+
+            const validate = (id, inVal, correctVal) => {
+                const el = document.getElementById(id);
+                el.classList.remove('border-gray-300', 'border-red-500', 'bg-red-50', 'border-green-500', 'bg-green-50');
+                
+                if (isNaN(inVal)) {
+                    el.classList.add('border-red-500', 'bg-red-50');
+                    allCorrect = false;
+                } else if (Math.abs(inVal - correctVal) <= tol) {
+                    el.classList.add('border-green-500', 'bg-green-50');
+                } else {
+                    el.classList.add('border-red-500', 'bg-red-50');
+                    allCorrect = false;
+                }
+            };
+
+            validate('inputDx', dxIn, correctData.dx);
+            for(let i=0; i<4; i++) {
+                validate(`inputH${i+1}`, hIn[i], correctData.heights[i]);
+            }
+            validate('inputU4', u4In, correctData.u4);
+            validate('inputFinal', finalIn, correctData.finalAmount);
+
+            const fb = document.getElementById('feedbackBox');
+            fb.classList.remove('hidden', 'bg-green-100', 'text-green-800', 'bg-red-100', 'text-red-800');
+
+            if (allCorrect) {
+                fb.innerText = "Hervorragend! Alle Berechnungen sind korrekt.";
+                fb.classList.add('bg-green-100', 'text-green-800');
+            } else {
+                fb.innerText = "Es gibt noch Fehler in den rot markierten Feldern. Vergleiche deine Eingaben mit dem Rechenweg unten.";
+                fb.classList.add('bg-red-100', 'text-red-800');
+            }
+
+            // NEU: Den Rechenweg und Graphen nach der Überprüfung immer einblenden
+            if (!graphRendered) {
+                drawGraphAid();
+            }
+            showSolutionText();
+        }
+
+        function showSolutionText() {
+            document.getElementById('solutionPanel').classList.remove('hidden');
+            
+            let html = `<p><strong>1. Intervallbreite:</strong> &Delta;x = ${currentTask.b} / 4 = ${correctData.dx}</p>`;
+            html += `<p class="mt-2"><strong>2. Rechteckshöhen (Minima der Teilintervalle):</strong></p><ul class="list-disc ml-6">`;
+            correctData.rects.forEach((r, i) => {
+                html += `<li>Teil ${i+1} [${r.x0} ; ${r.x1}]: Minimum bei x &approx; ${r.minX.toFixed(2)} &rarr; <strong>h<sub>${i+1}</sub> = ${r.minY.toFixed(2)}</strong></li>`;
+            });
+            html += `</ul>`;
+            
+            let hSumStr = correctData.heights.join(' + ').replace(/\+ -/g, '- ');
+            html += `<p class="mt-2"><strong>3. Untersumme U<sub>4</sub> berechnen:</strong><br>`;
+            html += `U<sub>4</sub> = ${correctData.dx} &middot; (${hSumStr}) = <strong>${correctData.u4}</strong></p>`;
+            
+            html += `<div class="mt-3 pt-3 border-t border-gray-300">`;
+            html += `<p><strong>4. Endbestand berechnen:</strong><br>`;
+            html += `Bestand = Anfangsbestand + U<sub>4</sub><br>`;
+            html += `Bestand = ${currentTask.B0} + (${correctData.u4}) = <strong>${correctData.finalAmount} ${currentTask.unit}</strong></p></div>`;
+
+            document.getElementById('solutionText').innerHTML = html;
+        }
+
+        // Init
+        setLevel(1);
+    </script>
+</body>
+</html>
