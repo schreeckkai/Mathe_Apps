@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trainingslager: Ober- und Untersummen</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/scorm-api-wrapper@1.5.0/dist/scorm-api-wrapper.min.js"></script>
+    <style>
+        .input-box {
+            width: 80px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body onload="initSCORM()" onunload="quitSCORM()" onbeforeunload="quitSCORM()" class="bg-gray-100 text-gray-800 font-sans p-4 md:p-8">
+
+    <div class="max-w-6xl mx-auto bg-white rounded-xl shadow-xl overflow-hidden">
+
+        <!-- Header -->
+        <div class="bg-blue-700 text-white p-6">
+            <h1 class="text-3xl font-bold">Trainingslager: Ober- und Untersummen</h1>
+            <p class="mt-2 opacity-90">Bestimme den Endbestand aus der Änderungsrate durch schrittweise Näherung.</p>
+        </div>
+
+        <!-- Level Selector -->
+        <div class="flex border-b border-gray-200 bg-gray-50">
+            <button onclick="setLevel(1)" id="tab-1" class="flex-1 py-4 font-bold text-lg text-blue-600 border-b-4 border-blue-600 hover:bg-gray-100 transition">Level 1: Monoton steigend</button>
+            <button onclick="setLevel(2)" id="tab-2" class="flex-1 py-4 font-bold text-lg text-gray-500 border-b-4 border-transparent hover:bg-gray-100 transition">Level 2: Monoton fallend</button>
+            <button onclick="setLevel(3)" id="tab-3" class="flex-1 py-4 font-bold text-lg text-gray-500 border-b-4 border-transparent hover:bg-gray-100 transition">Level 3: Steigend &amp; fallend</button>
+        </div>
+
+        <div class="p-6 grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+            <!-- Aufgaben & Eingabe-Panel -->
+            <div class="space-y-6">
+                <div class="bg-blue-50 p-5 rounded-lg border border-blue-200 shadow-sm">
+                    <div class="flex justify-between items-start mb-3">
+                        <h2 class="text-xl font-bold text-blue-800">Deine Aufgabe</h2>
+                        <button onclick="generateTask()" class="text-sm bg-blue-200 hover:bg-blue-300 text-blue-800 px-3 py-1 rounded font-semibold transition">Neu mischen</button>
+                    </div>
+                    <p id="taskContext" class="mb-4 text-gray-700"></p>
+                    <div class="grid grid-cols-2 gap-4 text-lg">
+                        <div class="bg-white p-3 rounded border"><strong>f(x) = </strong><span id="taskFunc" class="font-mono text-blue-700"></span></div>
+                        <div class="bg-white p-3 rounded border"><strong>Intervall: </strong>[<span id="taskStart"></span> ; <span id="taskEnd"></span>]</div>
+                    </div>
+                    <div class="mt-4 grid grid-cols-2 gap-4 text-lg">
+                        <div class="bg-white p-3 rounded border"><strong>Aufgabe: </strong><span id="taskType" class="font-bold text-orange-600"></span></div>
+                        <div class="bg-white p-3 rounded border"><strong>Anfangsbestand: </strong><span id="taskInit"></span></div>
+                    </div>
+
+                    <button onclick="drawGraphAid()" id="btnGraphAid" class="mt-4 w-full bg-indigo-100 hover:bg-indigo-200 text-indigo-800 border border-indigo-300 font-bold py-2 px-4 rounded transition text-left flex justify-between items-center">
+                        <span>👁️ Graph und Rechtecke zur Hilfe einblenden</span>
+                        <span class="text-xl">+</span>
+                    </button>
+                </div>
+
+                <!-- Arbeitsblatt (Eingabefelder) -->
+                <div class="bg-white p-5 rounded-lg border border-gray-300 shadow-sm">
+                    <h3 id="step1Title" class="text-lg font-bold mb-4 border-b pb-2">1. Schritt: Summe berechnen</h3>
+
+                    <div class="flex items-center space-x-4 mb-4">
+                        <label class="font-semibold">Breite eines Rechtecks (&Delta;x):</label>
+                        <input type="number" id="inputDx" step="0.1" class="border-2 border-gray-300 rounded p-2 input-box focus:border-blue-500 outline-none">
+                    </div>
+
+                    <div class="mb-4">
+                        <label id="heightsLabel" class="font-semibold block mb-2">Höhe der Rechtecke:</label>
+                        <div id="heightsContainer" class="flex flex-wrap gap-3">
+                            <!-- dynamisch gefüllt -->
+                        </div>
+                    </div>
+
+                    <div class="flex items-center space-x-4 mb-6">
+                        <label class="font-semibold">Gesamte Summe:</label>
+                        <input type="number" id="inputSum" step="0.01" class="border-2 border-gray-300 rounded p-2 w-24 text-center focus:border-blue-500 outline-none">
+                    </div>
+
+                    <h3 class="text-lg font-bold mb-4 border-b pb-2">2. Schritt: Endbestand ermitteln</h3>
+                    <div class="flex items-center space-x-4 mb-6">
+                        <label class="font-semibold">Bestand am Ende des Intervalls:</label>
+                        <input type="number" id="inputFinal" step="0.01" class="border-2 border-gray-300 rounded p-2 w-24 text-center focus:border-green-500 outline-none">
+                    </div>
+
+                    <button onclick="checkAnswers()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg text-lg transition shadow-md">
+                        Antworten prüfen
+                    </button>
+
+                    <div id="feedbackBox" class="mt-4 p-4 rounded hidden font-bold"></div>
+                </div>
+            </div>
+
+            <!-- Graphik & Lösung -->
+            <div class="flex flex-col space-y-6">
+                <div id="graphPanel" class="hidden bg-white p-4 rounded-lg border border-gray-300 shadow-sm relative">
+                    <h3 class="text-lg font-bold mb-2 absolute top-4 left-4 z-10 bg-white/90 p-1 rounded border shadow-sm">Grafische Hilfe</h3>
+                    <div id="graphDiv" class="w-full h-[350px]"></div>
+                </div>
+
+                <div id="solutionPanel" class="hidden bg-gray-50 p-5 rounded-lg border border-gray-300 shadow-sm">
+                    <h3 class="text-lg font-bold mb-3 border-b border-gray-300 pb-2">Ausführlicher Rechenweg</h3>
+                    <div id="solutionText" class="font-mono text-sm space-y-3"></div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // SCORM-Integration
+        // ============================================
+        let scormInitialized = false;
+        let scormCompleted = false;
+
+        function initSCORM() {
+            if (typeof pipwerks !== 'undefined' && pipwerks.SCORM) {
+                scormInitialized = pipwerks.SCORM.init();
+                if (scormInitialized) {
+                    console.log("SCORM initialisiert");
+                    // Status auf "incomplete" setzen (falls noch nicht abgeschlossen)
+                    const status = pipwerks.SCORM.get("cmi.core.lesson_status");
+                    if (status === "not attempted" || status === "" || status === null) {
+                        pipwerks.SCORM.set("cmi.core.lesson_status", "incomplete");
+                        pipwerks.SCORM.save();
+                    }
+                } else {
+                    console.log("SCORM konnte nicht initialisiert werden (kein LMS gefunden)");
+                }
+            }
+        }
+
+        function quitSCORM() {
+            if (scormInitialized) {
+                pipwerks.SCORM.quit();
+            }
+        }
+
+        function setSCORMComplete() {
+            if (!scormInitialized || scormCompleted) return;
+
+            // Status auf "completed" setzen
+            pipwerks.SCORM.set("cmi.core.lesson_status", "completed");
+
+            // Punkte setzen (100 bei vollständig korrekt)
+            pipwerks.SCORM.set("cmi.core.score.raw", "100");
+            pipwerks.SCORM.set("cmi.core.score.min", "0");
+            pipwerks.SCORM.set("cmi.core.score.max", "100");
+
+            // Speichern
+            pipwerks.SCORM.save();
+            pipwerks.SCORM.set("cmi.core.exit", "");
+
+            scormCompleted = true;
+            console.log("SCORM: Status auf 'completed' gesetzt");
+        }
+
+        // ============================================
+        // Aufgaben-Datenbank
+        // ============================================
+        const taskDB = {
+            1: [
+                { func: "0.1*x^3 + 0.5*x + 2", a: 0, b: 4, B0: 10, unit: "Liter",
+                  text: "In einen leeren Pool fließt Wasser. Die Zuflussrate (in Liter/Minute) nimmt stetig zu. Zu Beginn sind 10 Liter im Pool." },
+                { func: "0.05*x^4 + x + 3", a: 0, b: 3, B0: 5, unit: "Tonnen",
+                  text: "Ein Förderband transportiert Kies auf einen Haufen. Die Förderrate (in Tonnen/Stunde) steigt kontinuierlich an. Zu Beginn liegen bereits 5 Tonnen auf dem Haufen." },
+                { func: "0.2*x^3 + x", a: 1, b: 4, B0: 20, unit: "°C",
+                  text: "Ein Ofen wird immer stärker aufgeheizt. Die Änderungsrate der Temperatur (in °C/Minute) steigt durchgehend. Starttemperatur: 20 °C." }
+            ],
+            2: [
+                { func: "-0.1*x^3 - 0.5*x + 15", a: 0, b: 4, B0: 100, unit: "Liter",
+                  text: "Wasser läuft aus einem Tank. Die Abflussrate (in Liter/Minute) ist durchgehend positiv und wird immer größer. Anfangsbestand: 100 Liter." },
+                { func: "-x^3 + 20", a: 0, b: 3, B0: 50, unit: "Tsd. €",
+                  text: "Ein Unternehmen verliert kontinuierlich an Wert. Die Änderungsrate (in Tsd. €/Monat) ist negativ und wird immer negativer. Startwert: 50 (Tausend €)." },
+                { func: "-0.3*x^3 + 30", a: 2, b: 5, B0: 80, unit: "Personen",
+                  text: "Eine Besuchergruppe verlässt ein Festival. Die Änderungsrate (in Personen/Stunde) ist durchgehend negativ. Zu Beginn (x=2) sind 80 Personen da." }
+            ],
+            3: [
+                { func: "0.1*x^3 - 0.6*x^2 + 0.5*x + 3", a: 0, b: 5, B0: 15, unit: "Liter",
+                  text: "Die Zuflussrate eines Wasserhahns schwankt: erst stärker, dann schwächer, dann wieder stärker. Die Funktion f(x) (in Liter/Minute) beschreibt diese Änderungsrate. Anfangsbestand: 15 Liter." },
+                { func: "x^4 - 8*x^2 + 10", a: 0, b: 3, B0: 25, unit: "Tsd. €",
+                  text: "Ein Aktienkurs schwankt. Die Änderungsrate (in Tsd. €/Monat) fällt zunächst, steigt dann aber wieder an. Startwert des Depots: 25 (Tausend €)." },
+                { func: "-0.2*x^4 + 2*x^3 - 5*x^2 + 4*x + 10", a: 0, b: 4, B0: 30, unit: "°C",
+                  text: "Die Temperaturänderung in einem Raum schwankt stark im Tagesverlauf. f(x) (in °C/Stunde) beschreibt die momentane Änderungsrate. Starttemperatur: 30 °C." }
+            ]
+        };
+
+        // Mögliche Aufgabentypen
+        const taskTypes = [
+            { sum: 'U', n: 3 },
+            { sum: 'O', n: 3 },
+            { sum: 'U', n: 4 },
+            { sum: 'O', n: 4 },
+            { sum: 'U', n: 5 },
+            { sum: 'O', n: 5 }
+        ];
+
+        let currentLevel = 1;
+        let currentTask = null;
+        let currentType = null;
+        let compiledNode = null;
+        let correctData = {};
+        let graphRendered = false;
+
+        // ============================================
+        // Level-Auswahl
+        // ============================================
+        function setLevel(lvl) {
+            currentLevel = lvl;
+
+            for (let i = 1; i <= 3; i++) {
+                const tab = document.getElementById(`tab-${i}`);
+                if (i === lvl) {
+                    tab.classList.replace('text-gray-500', 'text-blue-600');
+                    tab.classList.replace('border-transparent', 'border-blue-600');
+                } else {
+                    tab.classList.replace('text-blue-600', 'text-gray-500');
+                    tab.classList.replace('border-blue-600', 'border-transparent');
+                }
+            }
+
+            generateTask();
+        }
+
+        // ============================================
+        // Funktion auswerten
+        // ============================================
+        function evaluateFunc(x) {
+            return compiledNode.evaluate({ x: x });
+        }
+
+        // ============================================
+        // Extremum (Min oder Max) in einem Intervall finden
+        // ============================================
+        function findExtremumInInterval(start, end, type) {
+            const steps = 500;
+            const stepSize = (end - start) / steps;
+            let bestVal = (type === 'min') ? Infinity : -Infinity;
+            let bestX = start;
+
+            for (let i = 0; i <= steps; i++) {
+                let x = start + i * stepSize;
+                let y = evaluateFunc(x);
+                if (type === 'min' && y < bestVal) { bestVal = y; bestX = x; }
+                if (type === 'max' && y > bestVal) { bestVal = y; bestX = x; }
+            }
+            return { x: bestX, y: bestVal };
+        }
+
+        // ============================================
+        // Neue Aufgabe generieren
+        // ============================================
+        function generateTask() {
+            const tasks = taskDB[currentLevel];
+            currentTask = tasks[Math.floor(Math.random() * tasks.length)];
+            currentType = taskTypes[Math.floor(Math.random() * taskTypes.length)];
+            compiledNode = math.parse(currentTask.func).compile();
+
+            const a = currentTask.a;
+            const b = currentTask.b;
+            const n = currentType.n;
+            const sumLabel = currentType.sum === 'U' ? 'Untersumme' : 'Obersumme';
+            const sub = `${currentType.sum}<sub>${n}</sub>`;
+
+            // Anzeige
+            document.getElementById('taskContext').innerText = currentTask.text;
+            document.getElementById('taskFunc').innerText = currentTask.func;
+            document.getElementById('taskStart').innerText = a;
+            document.getElementById('taskEnd').innerText = b;
+            document.getElementById('taskType').innerHTML = `${sumLabel} ${sub}`;
+            document.getElementById('taskInit').innerText = currentTask.B0 + " " + currentTask.unit;
+
+            // Überschriften anpassen
+            document.getElementById('step1Title').innerHTML =
+                `1. Schritt: ${sumLabel} ${sub} berechnen`;
+
+            // Höhenlabel anpassen
+            const heightsLabel = document.getElementById('heightsLabel');
+            if (currentType.sum === 'U') {
+                heightsLabel.innerText = `Höhe der ${n} Rechtecke (Minimaler Funktionswert im Teilintervall):`;
+            } else {
+                heightsLabel.innerText = `Höhe der ${n} Rechtecke (Maximaler Funktionswert im Teilintervall):`;
+            }
+
+            // Höhen-Eingabefelder dynamisch erzeugen
+            renderHeightInputs(n);
+
+            // Eingabefelder zurücksetzen
+            const inputs = ['inputDx', 'inputSum', 'inputFinal'];
+            inputs.forEach(id => {
+                const el = document.getElementById(id);
+                el.value = '';
+                el.classList.remove('border-red-500', 'bg-red-50', 'border-green-500', 'bg-green-50');
+                el.classList.add('border-gray-300');
+            });
+            for (let i = 1; i <= 5; i++) {
+                const el = document.getElementById(`inputH${i}`);
+                if (el) {
+                    el.value = '';
+                    el.classList.remove('border-red-500', 'bg-red-50', 'border-green-500', 'bg-green-50');
+                    el.classList.add('border-gray-300');
+                }
+            }
+
+            document.getElementById('feedbackBox').classList.add('hidden');
+            document.getElementById('graphPanel').classList.add('hidden');
+            document.getElementById('solutionPanel').classList.add('hidden');
+            document.getElementById('btnGraphAid').classList.remove('hidden');
+            graphRendered = false;
+
+            calculateCorrectAnswers();
+        }
+
+        // ============================================
+        // Höhen-Eingabefelder rendern
+        // ============================================
+        function renderHeightInputs(n) {
+            const container = document.getElementById('heightsContainer');
+            container.innerHTML = '';
+            for (let i = 0; i < n; i++) {
+                const div = document.createElement('div');
+                div.innerHTML = `
+                    <span class="text-sm text-gray-500 block">h<sub>${i + 1}</sub></span>
+                    <input type="number" id="inputH${i + 1}" step="0.01" class="border-2 border-gray-300 rounded p-2 input-box">
+                `;
+                container.appendChild(div);
+            }
+        }
+
+        // ============================================
+        // Korrekte Lösung berechnen
+        // ============================================
+        function calculateCorrectAnswers() {
+            const a = currentTask.a;
+            const b = currentTask.b;
+            const n = currentType.n;
+            const isMin = currentType.sum === 'U';
+            const dx = (b - a) / n;
+
+            const heights = [];
+            const rects = [];
+            let sum = 0;
+
+            for (let i = 0; i < n; i++) {
+                let start = a + i * dx;
+                let end = a + (i + 1) * dx;
+                let ext = findExtremumInInterval(start, end, isMin ? 'min' : 'max');
+                let h = Math.round(ext.y * 100) / 100;
+                heights.push(h);
+                rects.push({ x0: start, x1: end, extX: ext.x, extY: h });
+                sum += h * dx;
+            }
+
+            sum = Math.round(sum * 100) / 100;
+            const finalAmount = Math.round((currentTask.B0 + sum) * 100) / 100;
+
+            correctData = { dx, heights, sum, finalAmount, rects, n, isMin };
+        }
+
+        // ============================================
+        // Graph mit Rechtecken zeichnen
+        // ============================================
+        function drawGraphAid() {
+            document.getElementById('graphPanel').classList.remove('hidden');
+            document.getElementById('btnGraphAid').classList.add('hidden');
+
+            const a = currentTask.a;
+            const b = currentTask.b;
+
+            const xVals = [];
+            const yVals = [];
+            const numPoints = 300;
+            for (let i = 0; i <= numPoints; i++) {
+                let x = a + ((b - a) / numPoints) * i;
+                xVals.push(x);
+                yVals.push(evaluateFunc(x));
+            }
+
+            const trace = {
+                x: xVals, y: yVals, mode: 'lines', name: 'f(x)',
+                line: { color: '#1d4ed8', width: 3 }, hoverinfo: 'none'
+            };
+
+            const shapes = correctData.rects.map(r => {
+                const isPositive = r.extY >= 0;
+                return {
+                    type: 'rect',
+                    x0: r.x0, y0: 0, x1: r.x1, y1: r.extY,
+                    fillcolor: isPositive ? 'rgba(34, 197, 94, 0.3)' : 'rgba(239, 68, 68, 0.3)',
+                    line: { color: isPositive ? 'rgba(21, 128, 61, 1)' : 'rgba(185, 28, 28, 1)', width: 2 }
+                };
+            });
+
+            // x-Achse als gestrichelte Linie immer sichtbar
+            shapes.push({
+                type: 'line', x0: a - 0.5, y0: 0, x1: b + 0.5, y1: 0,
+                line: { color: 'black', width: 1, dash: 'dot' }
+            });
+
+            const layout = {
+                margin: { t: 40, b: 30, l: 40, r: 20 },
+                xaxis: { range: [a - 0.5, b + 0.5], title: 'x' },
+                yaxis: { title: 'f(x)' },
+                shapes: shapes,
+                showlegend: false
+            };
+
+            Plotly.newPlot('graphDiv', [trace], layout, { displayModeBar: false });
+            graphRendered = true;
+        }
+
+        // ============================================
+        // Antworten prüfen
+        // ============================================
+        function checkAnswers() {
+            const tol = 0.05;
+            const n = correctData.n;
+
+            const dxIn = parseFloat(document.getElementById('inputDx').value);
+            const sumIn = parseFloat(document.getElementById('inputSum').value);
+            const finalIn = parseFloat(document.getElementById('inputFinal').value);
+            const hIn = [];
+            for (let i = 1; i <= n; i++) {
+                hIn.push(parseFloat(document.getElementById(`inputH${i}`).value));
+            }
+
+            let allCorrect = true;
+
+            const validate = (id, inVal, correctVal) => {
+                const el = document.getElementById(id);
+                el.classList.remove('border-gray-300', 'border-red-500', 'bg-red-50', 'border-green-500', 'bg-green-50');
+                if (isNaN(inVal)) {
+                    el.classList.add('border-red-500', 'bg-red-50');
+                    allCorrect = false;
+                } else if (Math.abs(inVal - correctVal) <= tol) {
+                    el.classList.add('border-green-500', 'bg-green-50');
+                } else {
+                    el.classList.add('border-red-500', 'bg-red-50');
+                    allCorrect = false;
+                }
+            };
+
+            validate('inputDx', dxIn, correctData.dx);
+            for (let i = 0; i < n; i++) {
+                validate(`inputH${i + 1}`, hIn[i], correctData.heights[i]);
+            }
+            validate('inputSum', sumIn, correctData.sum);
+            validate('inputFinal', finalIn, correctData.finalAmount);
+
+            const fb = document.getElementById('feedbackBox');
+            fb.classList.remove('hidden', 'bg-green-100', 'text-green-800', 'bg-red-100', 'text-red-800');
+
+            if (allCorrect) {
+                fb.innerText = "Hervorragend! Alle Berechnungen sind korrekt.";
+                fb.classList.add('bg-green-100', 'text-green-800');
+                // SCORM: Abschluss melden
+                setSCORMComplete();
+            } else {
+                fb.innerText = "Es gibt noch Fehler in den rot markierten Feldern. Vergleiche deine Eingaben mit dem Rechenweg unten.";
+                fb.classList.add('bg-red-100', 'text-red-800');
+            }
+
+            if (!graphRendered) {
+                drawGraphAid();
+            }
+            showSolutionText();
+        }
+
+        // ============================================
+        // Rechenweg anzeigen
+        // ============================================
+        function showSolutionText() {
+            document.getElementById('solutionPanel').classList.remove('hidden');
+
+            const a = currentTask.a;
+            const b = currentTask.b;
+            const n = correctData.n;
+            const isMin = correctData.isMin;
+            const sumLabel = isMin ? 'Untersumme' : 'Obersumme';
+            const sub = `${currentType.sum}<sub>${n}</sub>`;
+            const extLabel = isMin ? 'Minima' : 'Maxima';
+
+            let html = `<p><strong>1. Intervallbreite:</strong> &Delta;x = (${b} − ${a}) / ${n} = ${correctData.dx.toFixed(3)}</p>`;
+
+            html += `<p class="mt-2"><strong>2. Rechteckshöhen (${extLabel} der Teilintervalle):</strong></p><ul class="list-disc ml-6">`;
+            correctData.rects.forEach((r, i) => {
+                html += `<li>Teil ${i + 1} [${r.x0.toFixed(2)} ; ${r.x1.toFixed(2)}]: Extremum bei x &approx; ${r.extX.toFixed(2)} &rarr; <strong>h<sub>${i + 1}</sub> = ${r.extY.toFixed(2)}</strong></li>`;
+            });
+            html += `</ul>`;
+
+            let hSumStr = correctData.heights.join(' + ').replace(/\+ -/g, '- ');
+            html += `<p class="mt-2"><strong>3. ${sumLabel} ${sub} berechnen:</strong><br>`;
+            html += `${currentType.sum}<sub>${n}</sub> = ${correctData.dx.toFixed(3)} &middot; (${hSumStr}) = <strong>${correctData.sum}</strong></p>`;
+
+            html += `<div class="mt-3 pt-3 border-t border-gray-300">`;
+            html += `<p><strong>4. Endbestand berechnen:</strong><br>`;
+            html += `Bestand = Anfangsbestand + ${sub}<br>`;
+            html += `Bestand = ${currentTask.B0} + (${correctData.sum}) = <strong>${correctData.finalAmount} ${currentTask.unit}</strong></p></div>`;
+
+            document.getElementById('solutionText').innerHTML = html;
+        }
+
+        // Init
+        setLevel(1);
+    </script>
+</body>
+</html>
