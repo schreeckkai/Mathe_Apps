@@ -7,7 +7,22 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.min.js"></script>
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/scorm-api-wrapper@1.5.0/dist/scorm-api-wrapper.min.js"></script>
+
+    <!-- MathJax Konfiguration -->
+    <script>
+        MathJax = {
+            tex: {
+                inlineMath: [['\\(', '\\)']],
+                displayMath: [['\\[', '\\]']]
+            },
+            svg: { fontCache: 'global' },
+            startup: {
+                typeset: false
+            }
+        };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
+
     <style>
         .input-box {
             width: 80px;
@@ -15,7 +30,7 @@
         }
     </style>
 </head>
-<body onload="initSCORM()" onunload="quitSCORM()" onbeforeunload="quitSCORM()" class="bg-gray-100 text-gray-800 font-sans p-4 md:p-8">
+<body class="bg-gray-100 text-gray-800 font-sans p-4 md:p-8">
 
     <div class="max-w-6xl mx-auto bg-white rounded-xl shadow-xl overflow-hidden">
 
@@ -43,8 +58,14 @@
                     </div>
                     <p id="taskContext" class="mb-4 text-gray-700"></p>
                     <div class="grid grid-cols-2 gap-4 text-lg">
-                        <div class="bg-white p-3 rounded border"><strong>f(x) = </strong><span id="taskFunc" class="font-mono text-blue-700"></span></div>
-                        <div class="bg-white p-3 rounded border"><strong>Intervall: </strong>[<span id="taskStart"></span> ; <span id="taskEnd"></span>]</div>
+                        <div class="bg-white p-3 rounded border">
+                            <strong>\(f(x) = \)</strong>
+                            <span id="taskFunc" class="text-blue-700"></span>
+                        </div>
+                        <div class="bg-white p-3 rounded border">
+                            <strong>Intervall: </strong>
+                            <span id="taskInterval"></span>
+                        </div>
                     </div>
                     <div class="mt-4 grid grid-cols-2 gap-4 text-lg">
                         <div class="bg-white p-3 rounded border"><strong>Aufgabe: </strong><span id="taskType" class="font-bold text-orange-600"></span></div>
@@ -62,15 +83,13 @@
                     <h3 id="step1Title" class="text-lg font-bold mb-4 border-b pb-2">1. Schritt: Summe berechnen</h3>
 
                     <div class="flex items-center space-x-4 mb-4">
-                        <label class="font-semibold">Breite eines Rechtecks (&Delta;x):</label>
+                        <label class="font-semibold">Breite eines Rechtecks \((\Delta x)\):</label>
                         <input type="number" id="inputDx" step="0.1" class="border-2 border-gray-300 rounded p-2 input-box focus:border-blue-500 outline-none">
                     </div>
 
                     <div class="mb-4">
                         <label id="heightsLabel" class="font-semibold block mb-2">Höhe der Rechtecke:</label>
-                        <div id="heightsContainer" class="flex flex-wrap gap-3">
-                            <!-- dynamisch gefüllt -->
-                        </div>
+                        <div id="heightsContainer" class="flex flex-wrap gap-3"></div>
                     </div>
 
                     <div class="flex items-center space-x-4 mb-6">
@@ -101,7 +120,7 @@
 
                 <div id="solutionPanel" class="hidden bg-gray-50 p-5 rounded-lg border border-gray-300 shadow-sm">
                     <h3 class="text-lg font-bold mb-3 border-b border-gray-300 pb-2">Ausführlicher Rechenweg</h3>
-                    <div id="solutionText" class="font-mono text-sm space-y-3"></div>
+                    <div id="solutionText" class="text-sm space-y-3"></div>
                 </div>
             </div>
 
@@ -109,54 +128,6 @@
     </div>
 
     <script>
-        // ============================================
-        // SCORM-Integration
-        // ============================================
-        let scormInitialized = false;
-        let scormCompleted = false;
-
-        function initSCORM() {
-            if (typeof pipwerks !== 'undefined' && pipwerks.SCORM) {
-                scormInitialized = pipwerks.SCORM.init();
-                if (scormInitialized) {
-                    console.log("SCORM initialisiert");
-                    // Status auf "incomplete" setzen (falls noch nicht abgeschlossen)
-                    const status = pipwerks.SCORM.get("cmi.core.lesson_status");
-                    if (status === "not attempted" || status === "" || status === null) {
-                        pipwerks.SCORM.set("cmi.core.lesson_status", "incomplete");
-                        pipwerks.SCORM.save();
-                    }
-                } else {
-                    console.log("SCORM konnte nicht initialisiert werden (kein LMS gefunden)");
-                }
-            }
-        }
-
-        function quitSCORM() {
-            if (scormInitialized) {
-                pipwerks.SCORM.quit();
-            }
-        }
-
-        function setSCORMComplete() {
-            if (!scormInitialized || scormCompleted) return;
-
-            // Status auf "completed" setzen
-            pipwerks.SCORM.set("cmi.core.lesson_status", "completed");
-
-            // Punkte setzen (100 bei vollständig korrekt)
-            pipwerks.SCORM.set("cmi.core.score.raw", "100");
-            pipwerks.SCORM.set("cmi.core.score.min", "0");
-            pipwerks.SCORM.set("cmi.core.score.max", "100");
-
-            // Speichern
-            pipwerks.SCORM.save();
-            pipwerks.SCORM.set("cmi.core.exit", "");
-
-            scormCompleted = true;
-            console.log("SCORM: Status auf 'completed' gesetzt");
-        }
-
         // ============================================
         // Aufgaben-Datenbank
         // ============================================
@@ -187,7 +158,6 @@
             ]
         };
 
-        // Mögliche Aufgabentypen
         const taskTypes = [
             { sum: 'U', n: 3 },
             { sum: 'O', n: 3 },
@@ -203,6 +173,29 @@
         let compiledNode = null;
         let correctData = {};
         let graphRendered = false;
+
+        // ============================================
+        // Hilfsfunktion: Plain-Text-Funktion → LaTeX
+        // ============================================
+        function funcToLatex(funcStr) {
+            return funcStr
+                .replace(/\*/g, '')                    // Multiplikationszeichen entfernen
+                .replace(/(\d)\.(\d)/g, '$1{,}$2');    // 0.5 → 0{,}5 (deutsches Format)
+        }
+
+        // Formatiert eine Zahl im deutschen Format
+        function fmt(num, digits = 2) {
+            return num.toFixed(digits).replace('.', ',');
+        }
+
+        // ============================================
+        // MathJax neu rendern
+        // ============================================
+        function renderMath() {
+            if (window.MathJax && MathJax.typesetPromise) {
+                MathJax.typesetPromise().catch((err) => console.log('MathJax Fehler:', err));
+            }
+        }
 
         // ============================================
         // Level-Auswahl
@@ -224,16 +217,10 @@
             generateTask();
         }
 
-        // ============================================
-        // Funktion auswerten
-        // ============================================
         function evaluateFunc(x) {
             return compiledNode.evaluate({ x: x });
         }
 
-        // ============================================
-        // Extremum (Min oder Max) in einem Intervall finden
-        // ============================================
         function findExtremumInInterval(start, end, type) {
             const steps = 500;
             const stepSize = (end - start) / steps;
@@ -262,21 +249,19 @@
             const b = currentTask.b;
             const n = currentType.n;
             const sumLabel = currentType.sum === 'U' ? 'Untersumme' : 'Obersumme';
-            const sub = `${currentType.sum}<sub>${n}</sub>`;
+            const sub = `${currentType.sum}_{${n}}`;
+            const subHTML = `${currentType.sum}<sub>${n}</sub>`;
 
             // Anzeige
             document.getElementById('taskContext').innerText = currentTask.text;
-            document.getElementById('taskFunc').innerText = currentTask.func;
-            document.getElementById('taskStart').innerText = a;
-            document.getElementById('taskEnd').innerText = b;
-            document.getElementById('taskType').innerHTML = `${sumLabel} ${sub}`;
+            document.getElementById('taskFunc').innerHTML = `\\(${funcToLatex(currentTask.func)}\\)`;
+            document.getElementById('taskInterval').innerHTML = `\\([${a}; ${b}]\\)`;
+            document.getElementById('taskType').innerHTML = `${sumLabel} \\(${sub}\\)`;
             document.getElementById('taskInit').innerText = currentTask.B0 + " " + currentTask.unit;
 
-            // Überschriften anpassen
             document.getElementById('step1Title').innerHTML =
-                `1. Schritt: ${sumLabel} ${sub} berechnen`;
+                `1. Schritt: ${sumLabel} \\(${sub}\\) berechnen`;
 
-            // Höhenlabel anpassen
             const heightsLabel = document.getElementById('heightsLabel');
             if (currentType.sum === 'U') {
                 heightsLabel.innerText = `Höhe der ${n} Rechtecke (Minimaler Funktionswert im Teilintervall):`;
@@ -284,7 +269,6 @@
                 heightsLabel.innerText = `Höhe der ${n} Rechtecke (Maximaler Funktionswert im Teilintervall):`;
             }
 
-            // Höhen-Eingabefelder dynamisch erzeugen
             renderHeightInputs(n);
 
             // Eingabefelder zurücksetzen
@@ -311,6 +295,7 @@
             graphRendered = false;
 
             calculateCorrectAnswers();
+            renderMath();
         }
 
         // ============================================
@@ -322,7 +307,7 @@
             for (let i = 0; i < n; i++) {
                 const div = document.createElement('div');
                 div.innerHTML = `
-                    <span class="text-sm text-gray-500 block">h<sub>${i + 1}</sub></span>
+                    <span class="text-sm text-gray-500 block">\\(h_{${i + 1}}\\)</span>
                     <input type="number" id="inputH${i + 1}" step="0.01" class="border-2 border-gray-300 rounded p-2 input-box">
                 `;
                 container.appendChild(div);
@@ -360,7 +345,7 @@
         }
 
         // ============================================
-        // Graph mit Rechtecken zeichnen
+        // Graph zeichnen
         // ============================================
         function drawGraphAid() {
             document.getElementById('graphPanel').classList.remove('hidden');
@@ -393,7 +378,6 @@
                 };
             });
 
-            // x-Achse als gestrichelte Linie immer sichtbar
             shapes.push({
                 type: 'line', x0: a - 0.5, y0: 0, x1: b + 0.5, y1: 0,
                 line: { color: 'black', width: 1, dash: 'dot' }
@@ -455,8 +439,6 @@
             if (allCorrect) {
                 fb.innerText = "Hervorragend! Alle Berechnungen sind korrekt.";
                 fb.classList.add('bg-green-100', 'text-green-800');
-                // SCORM: Abschluss melden
-                setSCORMComplete();
             } else {
                 fb.innerText = "Es gibt noch Fehler in den rot markierten Feldern. Vergleiche deine Eingaben mit dem Rechenweg unten.";
                 fb.classList.add('bg-red-100', 'text-red-800');
@@ -469,7 +451,7 @@
         }
 
         // ============================================
-        // Rechenweg anzeigen
+        // Rechenweg anzeigen (mit LaTeX)
         // ============================================
         function showSolutionText() {
             document.getElementById('solutionPanel').classList.remove('hidden');
@@ -479,31 +461,42 @@
             const n = correctData.n;
             const isMin = correctData.isMin;
             const sumLabel = isMin ? 'Untersumme' : 'Obersumme';
-            const sub = `${currentType.sum}<sub>${n}</sub>`;
+            const sumSymbol = currentType.sum;
+            const sub = `${sumSymbol}_{${n}}`;
             const extLabel = isMin ? 'Minima' : 'Maxima';
 
-            let html = `<p><strong>1. Intervallbreite:</strong> &Delta;x = (${b} − ${a}) / ${n} = ${correctData.dx.toFixed(3)}</p>`;
+            // 1. Intervallbreite
+            let html = `<p><strong>1. Intervallbreite:</strong><br>`;
+            html += `\\[\\Delta x = \\frac{${b} - ${a}}{${n}} = ${fmt(correctData.dx, 3)}\\]</p>`;
 
-            html += `<p class="mt-2"><strong>2. Rechteckshöhen (${extLabel} der Teilintervalle):</strong></p><ul class="list-disc ml-6">`;
+            // 2. Höhen
+            html += `<p><strong>2. Rechteckshöhen (${extLabel} der Teilintervalle):</strong></p><ul class="list-disc ml-6 space-y-1">`;
             correctData.rects.forEach((r, i) => {
-                html += `<li>Teil ${i + 1} [${r.x0.toFixed(2)} ; ${r.x1.toFixed(2)}]: Extremum bei x &approx; ${r.extX.toFixed(2)} &rarr; <strong>h<sub>${i + 1}</sub> = ${r.extY.toFixed(2)}</strong></li>`;
+                const isNegative = r.extY < 0;
+                const color = isNegative ? 'text-red-600' : 'text-green-700';
+                html += `<li>Teil ${i + 1}: Intervall \\([${fmt(r.x0)}, ${fmt(r.x1)}]\\) → Extremum bei \\(x \\approx ${fmt(r.extX)}\\) → `;
+                html += `<strong class="${color}">\\(h_{${i + 1}} = ${fmt(r.extY)}\\text{ ${currentTask.unit}}\\)</strong></li>`;
             });
             html += `</ul>`;
 
-            let hSumStr = correctData.heights.join(' + ').replace(/\+ -/g, '- ');
-            html += `<p class="mt-2"><strong>3. ${sumLabel} ${sub} berechnen:</strong><br>`;
-            html += `${currentType.sum}<sub>${n}</sub> = ${correctData.dx.toFixed(3)} &middot; (${hSumStr}) = <strong>${correctData.sum}</strong></p>`;
+            // 3. Summe
+            let hSumStr = correctData.heights.map(h => fmt(h)).join(' + ').replace(/\+ -/g, '- ');
+            html += `<p class="mt-3"><strong>3. ${sumLabel} \\(${sub}\\) berechnen:</strong><br>`;
+            html += `\\[${sumSymbol}_{${n}} = ${fmt(correctData.dx, 3)} \\cdot (${hSumStr}) = \\mathbf{${fmt(correctData.sum)}}\\]</p>`;
 
+            // 4. Endbestand
             html += `<div class="mt-3 pt-3 border-t border-gray-300">`;
             html += `<p><strong>4. Endbestand berechnen:</strong><br>`;
-            html += `Bestand = Anfangsbestand + ${sub}<br>`;
-            html += `Bestand = ${currentTask.B0} + (${correctData.sum}) = <strong>${correctData.finalAmount} ${currentTask.unit}</strong></p></div>`;
+            html += `\\[B_{\\text{Ende}} = B_0 + ${sumSymbol}_{${n}} = ${fmt(currentTask.B0)} + (${fmt(correctData.sum)}) = \\mathbf{${fmt(correctData.finalAmount)}\\text{ ${currentTask.unit}}}\\]</p></div>`;
 
             document.getElementById('solutionText').innerHTML = html;
+            renderMath();
         }
 
-        // Init
-        setLevel(1);
+        // Init – erst starten, wenn MathJax bereit ist
+        window.addEventListener('load', () => {
+            setLevel(1);
+        });
     </script>
 </body>
 </html>
