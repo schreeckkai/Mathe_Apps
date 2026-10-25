@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bestimmtes Integral - GeoGebra App</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+            color: #00d4ff;
+            text-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
+        }
+
+        .controls {
+            background: #16213e;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            width: 100%;
+            max-width: 800px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .input-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .input-group label {
+            font-size: 18px;
+            font-weight: bold;
+            color: #00d4ff;
+        }
+
+        .input-group input[type="text"] {
+            flex: 1;
+            padding: 10px 15px;
+            font-size: 18px;
+            border: 2px solid #0f3460;
+            border-radius: 8px;
+            background: #0f3460;
+            color: #fff;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .input-group input[type="text"]:focus {
+            border-color: #00d4ff;
+        }
+
+        .slider-group {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 10px;
+        }
+
+        .slider-group label {
+            min-width: 80px;
+            font-weight: bold;
+            color: #e94560;
+        }
+
+        .slider-group input[type="range"] {
+            flex: 1;
+            height: 8px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: #0f3460;
+            border-radius: 4px;
+            outline: none;
+        }
+
+        .slider-group input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #e94560;
+            cursor: pointer;
+            box-shadow: 0 0 8px rgba(233, 69, 96, 0.5);
+        }
+
+        .slider-group input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #e94560;
+            cursor: pointer;
+            border: none;
+        }
+
+        .slider-value {
+            min-width: 50px;
+            text-align: center;
+            font-weight: bold;
+            color: #fff;
+            background: #0f3460;
+            padding: 5px 10px;
+            border-radius: 6px;
+        }
+
+        .result {
+            background: linear-gradient(135deg, #0f3460, #16213e);
+            border: 2px solid #00d4ff;
+            border-radius: 12px;
+            padding: 15px 25px;
+            margin-top: 15px;
+            text-align: center;
+            font-size: 22px;
+        }
+
+        .result span {
+            color: #00d4ff;
+            font-weight: bold;
+        }
+
+        .canvas-container {
+            background: #16213e;
+            border-radius: 12px;
+            padding: 10px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        canvas {
+            display: block;
+            border-radius: 8px;
+            background: #0a0a1a;
+        }
+
+        .examples {
+            margin-top: 10px;
+            font-size: 13px;
+            color: #888;
+        }
+
+        .examples span {
+            color: #00d4ff;
+            cursor: pointer;
+            text-decoration: underline;
+            margin: 0 5px;
+        }
+
+        .examples span:hover {
+            color: #fff;
+        }
+
+        .error {
+            color: #e94560;
+            font-size: 14px;
+            margin-top: 5px;
+            min-height: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>∫ Bestimmtes Integral</h1>
+
+    <div class="controls">
+        <div class="input-group">
+            <label>f(x) =</label>
+            <input type="text" id="functionInput" value="x^2" placeholder="z.B. sin(x), x^2, exp(-x^2)">
+        </div>
+        <div class="examples">
+            Beispiele:
+            <span onclick="setFunction('x^2')">x²</span>
+            <span onclick="setFunction('sin(x)')">sin(x)</span>
+            <span onclick="setFunction('cos(x)')">cos(x)</span>
+            <span onclick="setFunction('x^3 - 3*x')">x³ - 3x</span>
+            <span onclick="setFunction('exp(-x^2)')">e^(-x²)</span>
+            <span onclick="setFunction('1/x')">1/x</span>
+            <span onclick="setFunction('sqrt(x)')">√x</span>
+            <span onclick="setFunction('log(x)')">ln(x)</span>
+        </div>
+        <div class="error" id="errorMsg"></div>
+
+        <div class="slider-group">
+            <label>Untergrenze a:</label>
+            <input type="range" id="sliderA" min="-10" max="10" step="0.1" value="-2">
+            <div class="slider-value" id="valueA">-2.0</div>
+        </div>
+
+        <div class="slider-group">
+            <label>Obergrenze b:</label>
+            <input type="range" id="sliderB" min="-10" max="10" step="0.1" value="2">
+            <div class="slider-value" id="valueB">2.0</div>
+        </div>
+
+        <div class="result">
+            ∫<sub>a</sub><sup>b</sup> f(x) dx = <span id="integralValue">0</span>
+        </div>
+    </div>
+
+    <div class="canvas-container">
+        <canvas id="graphCanvas" width="780" height="500"></canvas>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('graphCanvas');
+        const ctx = canvas.getContext('2d');
+        const functionInput = document.getElementById('functionInput');
+        const sliderA = document.getElementById('sliderA');
+        const sliderB = document.getElementById('sliderB');
+        const valueA = document.getElementById('valueA');
+        const valueB = document.getElementById('valueB');
+        const integralValue = document.getElementById('integralValue');
+        const errorMsg = document.getElementById('errorMsg');
+
+        // View settings
+        const viewXMin = -10;
+        const viewXMax = 10;
+        const viewYMin = -6;
+        const viewYMax = 6;
+
+        const padding = { top: 20, right: 20, bottom: 30, left: 40 };
+        const plotWidth = canvas.width - padding.left - padding.right;
+        const plotHeight = canvas.height - padding.top - padding.bottom;
+
+        function setFunction(expr) {
+            functionInput.value = expr;
+            update();
+        }
+
+        // Parse math expression to JavaScript
+        function parseMathExpr(expr) {
+            let jsExpr = expr
+                .replace(/\^/g, '**')
+                .replace(/sin\(/g, 'Math.sin(')
+                .replace(/cos\(/g, 'Math.cos(')
+                .replace(/tan\(/g, 'Math.tan(')
+                .replace(/asin\(/g, 'Math.asin(')
+                .replace(/acos\(/g, 'Math.acos(')
+                .replace(/atan\(/g, 'Math.atan(')
+                .replace(/sqrt\(/g, 'Math.sqrt(')
+                .replace(/abs\(/g, 'Math.abs(')
+                .replace(/exp\(/g, 'Math.exp(')
+                .replace(/log\(/g, 'Math.log(')
+                .replace(/ln\(/g, 'Math.log(')
+                .replace(/pi/g, 'Math.PI')
+                .replace(/e(?![x])/g, 'Math.E');
+
+            // Handle implicit multiplication: 2x -> 2*x, 2sin -> 2*Math.sin
+            jsExpr = jsExpr.replace(/(\d)([a-zA-Z])/g, '$1*$2');
+            jsExpr = jsExpr.replace(/(\))(\()/g, '$1*$2');
+            jsExpr = jsExpr.replace(/(\d)(\()/g, '$1*$2');
+            jsExpr = jsExpr.replace(/(\))(\d)/g, '$1*$2');
+            jsExpr = jsExpr.replace(/(\))([a-zA-Z])/g, '$1*$2');
+
+            return jsExpr;
+        }
+
+        function createFunction(expr) {
+            const jsExpr = parseMathExpr(expr);
+            try {
+                const fn = new Function('x', `"use strict"; try { const result = ${jsExpr}; return result; } catch(e) { return NaN; }`);
+                // Test the function
+                fn(1);
+                return fn;
+            } catch (e) {
+                throw new Error('Ungültiger Ausdruck');
+            }
+        }
+
+        // Numerical integration using Simpson's rule
+        function integrate(fn, a, b, n = 1000) {
+            if (a === b) return 0;
+            if (a > b) {
+                return -integrate(fn, b, a, n);
+            }
+
+            const h = (b - a) / n;
+            let sum = fn(a) + fn(b);
+
+            for (let i = 1; i < n; i++) {
+                const x = a + i * h;
+                if (i % 2 === 0) {
+                    sum += 2 * fn(x);
+                } else {
+                    sum += 4 * fn(x);
+                }
+            }
+
+            return (h / 3) * sum;
+        }
+
+        // Coordinate transformations
+        function toCanvasX(x) {
+            return padding.left + ((x - viewXMin) / (viewXMax - viewXMin)) * plotWidth;
+        }
+
+        function toCanvasY(y) {
+            return padding.top + ((viewYMax - y) / (viewYMax - viewYMin)) * plotHeight;
+        }
+
+        function drawGrid() {
+            ctx.strokeStyle = '#1a2a4a';
+            ctx.lineWidth = 1;
+
+            // Vertical grid lines
+            for (let x = Math.ceil(viewXMin); x <= Math.floor(viewXMax); x++) {
+                const cx = toCanvasX(x);
+                ctx.beginPath();
+                ctx.moveTo(cx, padding.top);
+                ctx.lineTo(cx, canvas.height - padding.bottom);
+                ctx.stroke();
+            }
+
+            // Horizontal grid lines
+            for (let y = Math.ceil(viewYMin); y <= Math.floor(viewYMax); y++) {
+                const cy = toCanvasY(y);
+                ctx.beginPath();
+                ctx.moveTo(padding.left, cy);
+                ctx.lineTo(canvas.width - padding.right, cy);
+                ctx.stroke();
+            }
+        }
+
+        function drawAxes() {
+            ctx.strokeStyle = '#555';
+            ctx.lineWidth = 2;
+
+            // X-axis
+            const y0 = toCanvasY(0);
+            if (y0 >= padding.top && y0 <= canvas.height - padding.bottom) {
+                ctx.beginPath();
+                ctx.moveTo(padding.left, y0);
+                ctx.lineTo(canvas.width - padding.right, y0);
+                ctx.stroke();
+            }
+
+            // Y-axis
+            const x0 = toCanvasX(0);
+            if (x0 >= padding.left && x0 <= canvas.width - padding.right) {
+                ctx.beginPath();
+                ctx.moveTo(x0, padding.top);
+                ctx.lineTo(x0, canvas.height - padding.bottom);
+                ctx.stroke();
+            }
+
+            // Labels
+            ctx.fillStyle = '#888';
+            ctx.font = '12px Segoe UI';
+            ctx.textAlign = 'center';
+
+            for (let x = Math.ceil(viewXMin); x <= Math.floor(viewXMax); x++) {
+                if (x === 0) continue;
+                const cx = toCanvasX(x);
+                const labelY = y0 >= padding.top && y0 <= canvas.height - padding.bottom ? y0 + 15 : canvas.height - padding.bottom + 15;
+                ctx.fillText(x, cx, labelY);
+            }
+
+            ctx.textAlign = 'right';
+            for (let y = Math.ceil(viewYMin); y <= Math.floor(viewYMax); y++) {
+                if (y === 0) continue;
+                const cy = toCanvasY(y);
+                const labelX = x0 >= padding.left && x0 <= canvas.width - padding.right ? x0 - 8 : padding.left - 5;
+                ctx.fillText(y, labelX, cy + 4);
+            }
+        }
+
+        function drawFunction(fn) {
+            ctx.strokeStyle = '#00d4ff';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+
+            let started = false;
+            const step = (viewXMax - viewXMin) / 1000;
+
+            for (let x = viewXMin; x <= viewXMax; x += step) {
+                const y = fn(x);
+                if (isNaN(y) || !isFinite(y) || y > 100 || y < -100) {
+                    started = false;
+                    continue;
+                }
+                const cx = toCanvasX(x);
+                const cy = toCanvasY(y);
+
+                if (!started) {
+                    ctx.moveTo(cx, cy);
+                    started = true;
+                } else {
+                    ctx.lineTo(cx, cy);
+                }
+            }
+            ctx.stroke();
+        }
+
+        function drawIntegralArea(fn, a, b) {
+            if (a > b) [a, b] = [b, a];
+
+            const step = (b - a) / 500;
+
+            // Draw filled area with different colors for positive/negative
+            ctx.beginPath();
+            const y0Canvas = toCanvasY(0);
+
+            // Positive area (above x-axis)
+            ctx.fillStyle = 'rgba(0, 212, 255, 0.25)';
+            ctx.beginPath();
+            ctx.moveTo(toCanvasX(a), y0Canvas);
+
+            for (let x = a; x <= b; x += step) {
+                const y = fn(x);
+                if (isNaN(y) || !isFinite(y)) continue;
+                const clampedY = Math.max(viewYMin, Math.min(viewYMax, y));
+                ctx.lineTo(toCanvasX(x), toCanvasY(clampedY));
+            }
+            ctx.lineTo(toCanvasX(b), y0Canvas);
+            ctx.closePath();
+            ctx.fill();
+
+            // Draw boundary lines
+            ctx.strokeStyle = '#e94560';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+
+            // Line at a
+            const cxa = toCanvasX(a);
+            ctx.beginPath();
+            ctx.moveTo(cxa, padding.top);
+            ctx.lineTo(cxa, canvas.height - padding.bottom);
+            ctx.stroke();
+
+            // Line at b
+            const cxb = toCanvasX(b);
+            ctx.beginPath();
+            ctx.moveTo(cxb, padding.top);
+            ctx.lineTo(cxb, canvas.height - padding.bottom);
+            ctx.stroke();
+
+            ctx.setLineDash([]);
+
+            // Labels for a and b
+            ctx.fillStyle = '#e94560';
+            ctx.font = 'bold 14px Segoe UI';
+            ctx.textAlign = 'center';
+            ctx.fillText('a=' + a.toFixed(1), cxa, padding.top - 5);
+            ctx.fillText('b=' + b.toFixed(1), cxb, padding.top - 5);
+        }
+
+        function update() {
+            const expr = functionInput.value.trim();
+            errorMsg.textContent = '';
+
+            let fn;
+            try {
+                fn = createFunction(expr);
+                fn(0); // test
+            } catch (e) {
+                errorMsg.textContent = '⚠ Ungültiger Funktionsausdruck';
+                integralValue.textContent = '—';
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                drawGrid();
+                drawAxes();
+                return;
+            }
+
+            const a = parseFloat(sliderA.value);
+            const b = parseFloat(sliderB.value);
+
+            valueA.textContent = a.toFixed(1);
+            valueB.textContent = b.toFixed(1);
+
+            // Calculate integral
+            let result;
+            try {
+                result = integrate(fn, a, b, 2000);
+                if (isNaN(result) || !isFinite(result)) {
+                    integralValue.textContent = 'nicht definiert';
+                } else {
+                    integralValue.textContent = result.toFixed(6);
+                }
+            } catch (e) {
+                integralValue.textContent = 'Fehler';
+            }
+
+            // Draw
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawGrid();
+            drawAxes();
+            drawIntegralArea(fn, a, b);
+            drawFunction(fn);
+        }
+
+        // Event listeners
+        functionInput.addEventListener('input', update);
+        sliderA.addEventListener('input', update);
+        sliderB.addEventListener('input', update);
+
+        // Initial draw
+        update();
+    </script>
+</body>
+</html>
